@@ -1,4 +1,4 @@
-[![licence](https://img.shields.io/github/license/weedge/redisxann.svg)](https://github.com/weedge/redisxann/blob/master/LICENSE)
+[![licence](https://img.shields.io/github/license/weedge/redisxann.svg)](https://github.com/weedge/redisxann/blob/main/LICENSE)
 
 ## RedisXAnn-rs
 
