@@ -1,0 +1,21 @@
+[package]
+name = "redisxann"
+version = "0.1.0"
+authors = ["weedge <weege007@gmail.com>"]
+edition = "2021"
+publish = ["git"]
+#build = "build.rs"
+description = "building Redis x ANN modules in Rust"
+license = ""
+repository = "https://github.com/RedisLabsModules/redismodule-rs"
+readme = "README.md"
+keywords = ["redis", "ann"]
+categories = ["database", "api-bindings"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+redis-module = { version = "2.0.5", features = ["default"] }
