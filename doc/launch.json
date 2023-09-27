@@ -1,0 +1,39 @@
+{
+    // https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "6372-redisxann",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/redis/src/redis-server",
+            "args": [
+                "--port 6372",
+                "--loadmodule  ${workspaceFolder}/target/debug/libredisxann.dylib",
+                "--dbfilename dump.6372.rdb",
+                //"--activerehashing no",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "${workspaceFolder}"
+                },
+            ],
+            "externalConsole": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "linux": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "/usr/bin/gdb"
+            },
+            "osx": {
+                "MIMode": "lldb"
+            },
+            "windows": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+            }
+        },
+    ]
+}

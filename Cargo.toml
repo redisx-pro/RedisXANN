@@ -16,6 +16,10 @@ categories = ["database", "api-bindings"]
 
 [lib]
 crate-type = ["cdylib"]
+path = "rust/lib.rs"
 
 [dependencies]
 redis-module = { version = "2.0.5", features = ["default"] }
+usearch = "2.6.0"
+faiss = { version = "0.12.1" }
+hnsw_rs = "0.2.0"

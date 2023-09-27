@@ -1,1 +1,12 @@
+# Build
+Cargo.lock
 /target
+
+# IDE
+.vscode
+
+# data
+*.rdb
+
+# soft link
+redis
