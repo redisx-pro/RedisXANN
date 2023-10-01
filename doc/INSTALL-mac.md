@@ -83,6 +83,13 @@ make -C build_release install
 - build redisxann module
 ```shell
 export LIBRARY_PATH=/usr/local/lib
-cargo build
-#cargo build --release
+# http://matthew-brett.github.io/docosx/mac_runtime_link.html
+# https://stackoverflow.com/questions/40602708/linking-rust-application-with-a-dynamic-library-not-in-the-runtime-linker-search
+RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build
+#RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --release
+```
+
+- run 
+```shell
+redis-server --loadmodule ./target/debug/libredisxann.dylib --port 6370 --dbfilename dump.6370.rdb
 ```

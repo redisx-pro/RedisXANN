@@ -10,7 +10,7 @@
             "args": [
                 "--port 6372",
                 "--loadmodule  ${workspaceFolder}/target/debug/libredisxann.dylib",
-                "--dbfilename dump.6372.rdb",
+                "--dbfilename dump.6372.rdb"
                 //"--activerehashing no",
             ],
             "stopAtEntry": false,
@@ -18,8 +18,8 @@
             "environment": [
                 {
                     "name": "LD_LIBRARY_PATH",
-                    "value": "${workspaceFolder}"
-                },
+                    "value": "/usr/local/lib"
+                }
             ],
             "externalConsole": false,
             "internalConsoleOptions": "openOnSessionStart",

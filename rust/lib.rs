@@ -13,6 +13,7 @@ fn hnswlib_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 }
 
 fn faiss_hnsw_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
+    ctx.log_notice(format!("{:?}", args).as_str());
     if args.len() < 1 {
         return Err(RedisError::WrongArity);
     }
@@ -26,28 +27,26 @@ fn faiss_hnsw_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     let second: [f32; 3] = [0.2, 0.1, 0.2];
     assert!(index.add(&first).is_ok());
     assert!(index.add(&second).is_ok());
-    assert_eq!(index.ntotal(), 2);
 
-    let result = index.search(&first, 5)?;
+    let result = index.search(&first, 2)?;
     for (i, (l, d)) in result
         .labels
         .iter()
         .zip(result.distances.iter())
         .enumerate()
     {
-        println!("#{}: {} (D={})", i + 1, *l, *d);
+        ctx.log_notice(format!("#{}: {} (D={})", i + 1, *l, *d).as_str());
     }
 
-    ctx.log_notice(format!("{:?}", args).as_str());
     Ok("ok".into())
 }
 
 fn usearch_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
+    ctx.log_notice(format!("{:?}", args).as_str());
     if args.len() < 1 {
         return Err(RedisError::WrongArity);
     }
 
-    ctx.log_notice(format!("{:?}", args).as_str());
     let mut options = IndexOptions::default();
     options.dimensions = 3; // D
     options.metric = MetricKind::IP;
