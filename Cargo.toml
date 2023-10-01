@@ -23,3 +23,5 @@ redis-module = { version = "2.0.5", features = ["default"] }
 usearch = "2.6.0"
 faiss = { version = "0.12.1" }
 hnsw_rs = "0.2.0"
+cpu-time = { version = "1.0" }
+rand = { version = "0.8" }

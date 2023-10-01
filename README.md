@@ -7,7 +7,6 @@
 
 
 ## Support ANN algorithm feature
-* [LSH](https://en.wikipedia.org/wiki/Locality-sensitive_hashing) - rust lib: [lsh-rs](https://github.com/ritchie46/lsh-rs) unsupport Dynamic update index
 * [nmslib](https://github.com/nmslib) - [HNSW](https://github.com/nmslib/hnswlib). rust lib: [hnswlib-rs](https://github.com/jean-pierreBoth/hnswlib-rs) unsupport Dynamic update index
 * [Faiss](https://github.com/facebookresearch/faiss) HNSW with coarse quantization (eg: IndexHNSWFlat), more detail see [faiss wiki](https://github.com/facebookresearch/faiss/wiki).  rust lib: [faiss-rs](https://github.com/Enet4/faiss-rs)
 * [USearch](https://github.com/unum-cloud/usearch) HNSW (**KISS**)
