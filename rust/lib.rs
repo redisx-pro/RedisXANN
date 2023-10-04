@@ -1,4 +1,5 @@
 use cpu_time::ProcessTime;
+use faiss::index::autotune::ParameterSpace;
 use faiss::{index_factory, Index, MetricType};
 use hnsw_rs::prelude::*;
 use rand::distributions::Uniform;
@@ -112,14 +113,22 @@ fn faiss_hnsw_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     // https://github.com/facebookresearch/faiss/wiki/Faiss-indexes
     // https://github.com/weedge/doraemon-nb/blob/main/faiss_composite_indexes.ipynb
+    // https://github.com/facebookresearch/faiss/blob/main/faiss/index_factory.cpp
     // HNSW,Flat no train
-    let mut index = index_factory(3, "HNSW,Flat", MetricType::L2)?;
+    let mut index = index_factory(3, "HNSW32,Flat", MetricType::L2)?;
+    index.set_verbose(true);
+
+    // https://github.com/facebookresearch/faiss/blob/main/faiss/AutoTune.cpp
+    let ps = ParameterSpace::new().unwrap();
+    ps.set_index_parameter(&mut index, "efConstruction", 40)
+        .unwrap();
 
     let first: [f32; 3] = [0.2, 0.1, 0.2];
     let second: [f32; 3] = [0.2, 0.1, 0.3];
     assert!(index.add(&first).is_ok());
     assert!(index.add(&second).is_ok());
 
+    ps.set_index_parameter(&mut index, "efSearch", 16).unwrap();
     let result = index.search(&first, 2)?;
     ctx.log_notice(format!("len:{}", result.labels.len()).as_str());
     for (i, (l, d)) in result
@@ -161,6 +170,8 @@ fn usearch_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     assert!(index.add(42, &first).is_ok());
     assert!(index.add(43, &second).is_ok());
     assert_eq!(index.size(), 2);
+    assert!(index.add(44, &second).is_ok());
+    assert!(index.remove(44).is_ok());
 
     // Read back the tags
     let results = index.search(&first, 10).unwrap();
