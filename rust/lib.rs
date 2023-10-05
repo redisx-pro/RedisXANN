@@ -1,6 +1,7 @@
 use cpu_time::ProcessTime;
 use faiss::index::autotune::ParameterSpace;
-use faiss::{index_factory, Index, MetricType};
+use faiss::selector::IdSelector;
+use faiss::{index_factory, IdMap, Idx, Index, MetricType};
 use hnsw_rs::prelude::*;
 use rand::distributions::Uniform;
 use rand::prelude::*;
@@ -9,9 +10,11 @@ use std::time::{Duration, SystemTime};
 use usearch::ffi::{IndexOptions, MetricKind, ScalarKind};
 use usearch::new_index;
 
+fn get_testdat() {}
+
 fn hnswlib_testdata(ctx: &Context) {
     //let nb_elem = 500000;
-    let nb_elem = 10;
+    let nb_elem = 1000;
     let dim = 25;
     // generate nb_elem colmuns vectors of dimension dim
     let mut rng = thread_rng();
@@ -30,15 +33,29 @@ fn hnswlib_testdata(ctx: &Context) {
     let ef_c = 200;
     let max_nb_connection = 15;
     let nb_layer = 16.min((nb_elem as f32).ln().trunc() as usize);
+    ctx.log_notice(
+        format!(
+            " hnsw new max_nb_connection {}, nb_elem {}, nb_layer {}, ef_c {}",
+            max_nb_connection, nb_elem, nb_layer, ef_c
+        )
+        .as_str(),
+    );
     let hns = Hnsw::<f32, DistL2>::new(max_nb_connection, nb_elem, nb_layer, ef_c, DistL2 {});
     let mut start = ProcessTime::now();
     let mut begin_t = SystemTime::now();
     hns.parallel_insert(&data_with_id);
     let mut cpu_time: Duration = start.elapsed();
-    ctx.log_notice(format!(" hnsw data insertion  cpu time {:?}", cpu_time).as_str());
     ctx.log_notice(
         format!(
-            " hnsw data insertion parallel,   system time {:?}",
+            " hnsw data count {} insertion  cpu time {:?}",
+            nb_elem, cpu_time
+        )
+        .as_str(),
+    );
+    ctx.log_notice(
+        format!(
+            " hnsw data count {} insertion parallel,   system time {:?}",
+            nb_elem,
             begin_t.elapsed().unwrap()
         )
         .as_str(),
@@ -105,31 +122,58 @@ fn hnswlib_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok("ok".into())
 }
 
-fn faiss_hnsw_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
-    ctx.log_notice(format!("{:?}", args).as_str());
-    if args.len() < 1 {
-        return Err(RedisError::WrongArity);
-    }
+fn index_remove_ids(_: &Context) {
+    let index = index_factory(4, "Flat", MetricType::L2).unwrap();
+    let mut id_index = IdMap::new(index).unwrap();
+    let some_data = &[2.3_f32, 0.0, -1., 1., 1., 1., 1., 4.5, 2.3, 7.6, 1., 2.2];
 
+    id_index
+        .add_with_ids(some_data, &[Idx::new(4), Idx::new(8), Idx::new(12)])
+        .unwrap();
+    assert_eq!(id_index.ntotal(), 3);
+
+    let id_sel = IdSelector::batch(&[Idx::new(4), Idx::new(12)])
+        .ok()
+        .unwrap();
+
+    id_index.remove_ids(&id_sel).unwrap();
+    assert_eq!(id_index.ntotal(), 1);
+}
+
+fn faiss_test_hnsw(ctx: &Context) -> RedisResult {
     // https://github.com/facebookresearch/faiss/wiki/Faiss-indexes
     // https://github.com/weedge/doraemon-nb/blob/main/faiss_composite_indexes.ipynb
     // https://github.com/facebookresearch/faiss/blob/main/faiss/index_factory.cpp
     // HNSW,Flat no train
-    let mut index = index_factory(3, "HNSW32,Flat", MetricType::L2)?;
-    index.set_verbose(true);
-
+    let index = index_factory(4, "HNSW32,Flat", MetricType::L2)?;
+    let mut id_index = IdMap::new(index)?;
     // https://github.com/facebookresearch/faiss/blob/main/faiss/AutoTune.cpp
-    let ps = ParameterSpace::new().unwrap();
-    ps.set_index_parameter(&mut index, "efConstruction", 40)
+    let ps = ParameterSpace::new()?;
+    ps.set_index_parameter(&mut id_index, "efConstruction", 40)?;
+
+    let some_data = &[2.3_f32, 0.0, -1., 1., 1., 1., 1., 4.5, 2.3, 7.6, 1., 2.2];
+    id_index.add_with_ids(some_data, &[Idx::new(4), Idx::new(8), Idx::new(12)])?;
+    assert_eq!(id_index.ntotal(), 3);
+
+    // remove
+    let id_sel = IdSelector::batch(&[Idx::new(4), Idx::new(12)])
+        .ok()
         .unwrap();
+    // faiss remove_ids not implemented for this type of index(HNSW)
+    id_index.remove_ids(&id_sel)?;
+    assert_eq!(id_index.ntotal(), 1);
 
-    let first: [f32; 3] = [0.2, 0.1, 0.2];
-    let second: [f32; 3] = [0.2, 0.1, 0.3];
-    assert!(index.add(&first).is_ok());
-    assert!(index.add(&second).is_ok());
+    let first: [f32; 4] = [0.2, 0.1, 0.2, 0.1];
+    let second: [f32; 4] = [0.2, 0.1, 0.3, 0.1];
+    //assert!(index.add(&first).is_ok());
+    //assert!(index.add(&second).is_ok());
+    assert!(id_index.add_with_ids(&first, &[Idx::new(16)]).is_ok());
+    assert!(id_index.add_with_ids(&second, &[Idx::new(20)]).is_ok());
+    assert_eq!(id_index.ntotal(), 3);
 
-    ps.set_index_parameter(&mut index, "efSearch", 16).unwrap();
-    let result = index.search(&first, 2)?;
+    ps.set_index_parameter(&mut id_index, "efSearch", 16)
+        .unwrap();
+    let result = id_index.search(&first, 3)?;
     ctx.log_notice(format!("len:{}", result.labels.len()).as_str());
     for (i, (l, d)) in result
         .labels
@@ -139,8 +183,18 @@ fn faiss_hnsw_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     {
         ctx.log_notice(format!("#{}: {} (D={})", i + 1, *l, *d).as_str());
     }
-
     Ok("ok".into())
+}
+
+fn faiss_hnsw_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
+    ctx.log_notice(format!("{:?}", args).as_str());
+    if args.len() < 1 {
+        return Err(RedisError::WrongArity);
+    }
+    return faiss_test_hnsw(ctx);
+
+    //index_remove_ids(ctx);
+    //Ok("ok".into())
 }
 
 fn usearch_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
