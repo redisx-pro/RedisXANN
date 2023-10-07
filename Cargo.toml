@@ -19,7 +19,7 @@ readme = "README.md"
 [[example]]
 crate-type = ["cdylib"]
 path = "rust/examples/vsstest.rs"
-name = "test"
+name = "vsstest"
 
 [[test]]
 path = "rust/tests/integration_usearch.rs"

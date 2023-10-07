@@ -54,10 +54,10 @@ RUST_SOEXT.freebsd=so
 RUST_SOEXT.macos=dylib
 
 build:
-	RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --all --all-targets $(CARGO_FLAGS)
+	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --all --all-targets $(CARGO_FLAGS)
 
 build_faiss:
-	RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --manifest-path rust/faiss/Cargo.toml $(CARGO_FLAGS)
+	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --manifest-path rust/faiss/Cargo.toml $(CARGO_FLAGS)
 
 build_hnsw:
 	cargo build --manifest-path rust/hnsw/Cargo.toml $(CARGO_FLAGS)
