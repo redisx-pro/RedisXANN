@@ -1,42 +1,27 @@
 [package]
-name = "redisxann"
+# redisxann_faiss
+name = "redisxann-faiss"
 version = "0.1.0"
 authors = ["weedge <weege007@gmail.com>"]
 edition = "2021"
 publish = ["git"]
 #build = "build.rs"
-description = "building Redis x ANN modules in Rust"
+description = "building Redis x ANN module faiss in Rust"
 license = "MIT"
 repository = "https://github.com/weedge/redisxann"
-keywords = ["redis", "ann"]
-categories = ["database"]
-exclude = [".gitignore", ".github/**"]
 readme = "README.md"
-
+keywords = ["redis", "ann", "faiss"]
+categories = ["database", "vss"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[example]]
+[lib]
 crate-type = ["cdylib"]
-path = "rust/examples/vsstest.rs"
-name = "test"
-
-[[test]]
-path = "rust/tests/integration_usearch.rs"
-name = "usearch"
+path = "src/lib.rs"
 
 [dependencies]
 redis-module = { version = "2.0.5", features = ["default"] }
-usearch = "2.6.0"
 faiss = { version = "0.12.1" }
-hnsw_rs = "0.2.0"
-cpu-time = { version = "1.0" }
-rand = { version = "0.8" }
 
 [dev-dependencies]
-anyhow = "1"
-redis = "0.23"
 redis-module = { version = "2.0.5", features = ["default"] }
-
-[workspace]
-members = ["rust/usearch", "rust/faiss", "rust/hnsw"]
