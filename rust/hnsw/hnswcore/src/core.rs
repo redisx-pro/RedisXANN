@@ -1,7 +1,7 @@
 use super::metrics;
 
 use num_traits::Float;
-use ordered_float::OrderedFloat;
+use ordered_float::{FloatCore, OrderedFloat};
 use owning_ref::{RefMutRefMut, RefRef, RwLockReadGuardRef, RwLockWriteGuardRefMut};
 use rand::prelude::*;
 use std::cell::RefCell;
@@ -236,7 +236,7 @@ type SimPairRef<T, R> = Rc<RefCell<_SimPair<T, R>>>;
 struct _SimPair<T, R>
 where
     T: Float,
-    R: Float,
+    R: Float + FloatCore,
 {
     pub sim: OrderedFloat<R>,
     pub node: Node<T>,
@@ -246,12 +246,12 @@ where
 struct SimPair<T, R>(SimPairRef<T, R>)
 where
     T: Float,
-    R: Float;
+    R: Float + FloatCore;
 
 impl<T, R> SimPair<T, R>
 where
     T: Float,
-    R: Float,
+    R: Float + FloatCore,
 {
     fn new(sim: OrderedFloat<R>, node: Node<T>) -> Self {
         let sp = _SimPair { sim, node };
@@ -270,19 +270,19 @@ where
 impl<T, R> PartialEq for SimPair<T, R>
 where
     T: Float,
-    R: Float,
+    R: Float + FloatCore,
 {
     fn eq(&self, other: &Self) -> bool {
         self.0.borrow().sim == other.0.borrow().sim
     }
 }
 
-impl<T: Float, R: Float> Eq for SimPair<T, R> {}
+impl<T: Float, R: Float + FloatCore> Eq for SimPair<T, R> {}
 
 impl<T, R> PartialOrd for SimPair<T, R>
 where
     T: Float,
-    R: Float,
+    R: Float + FloatCore,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.0.borrow().sim.partial_cmp(&other.0.borrow().sim)
@@ -292,7 +292,7 @@ where
 impl<T, R> Ord for SimPair<T, R>
 where
     T: Float,
-    R: Float,
+    R: Float + FloatCore,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.0.borrow().sim.cmp(&other.0.borrow().sim)
@@ -378,7 +378,7 @@ impl<T: Float, R: Float> fmt::Debug for Index<T, R> {
 impl<T, R> Index<T, R>
 where
     T: Float + Send + Sync + 'static,
-    R: Float,
+    R: Float + FloatCore,
 {
     pub fn add_node(
         &mut self,

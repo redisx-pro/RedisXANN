@@ -9,7 +9,8 @@ use std::os::raw::c_void;
 use std::ptr::NonNull;
 use std::{fmt, ptr};
 
-use super::hnsw::{metrics, Index, Node, SearchResult};
+use hnswcore::core::{Index, Node, SearchResult};
+use hnswcore::metrics;
 
 static INDEX_VERSION: i32 = 0;
 static NODE_VERSION: i32 = 0;

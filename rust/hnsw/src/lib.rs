@@ -1,11 +1,10 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
-mod hnsw;
 mod types;
 
 #[macro_use]
 extern crate lazy_static;
 
-use hnsw::{Index, Node};
+use hnswcore::core::{Index, Node};
 use redis_module::{
     redis_module, Context, NextArg, RedisError, RedisResult, RedisString, RedisValue,
 };
@@ -67,7 +66,7 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             // create index
             let index = Index::new(
                 &name,
-                Box::new(hnsw::metrics::euclidean),
+                Box::new(hnswcore::metrics::euclidean),
                 dim,
                 m,
                 ef_construction,

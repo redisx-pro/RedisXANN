@@ -43,4 +43,4 @@ redis = "0.23"
 redis-module = { version = "2.0.5", features = ["default"] }
 
 [workspace]
-members = ["rust/usearch", "rust/faiss", "rust/hnsw"]
+members = ["rust/usearch", "rust/faiss", "rust/hnsw/hnswcore", "rust/hnsw"]

@@ -59,6 +59,9 @@ build:
 build_faiss:
 	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --manifest-path rust/faiss/Cargo.toml $(CARGO_FLAGS)
 
+build_hnswcore:
+	cargo build --manifest-path rust/hnsw/hnswcore/Cargo.toml $(CARGO_FLAGS)
+
 build_hnsw:
 	cargo build --manifest-path rust/hnsw/Cargo.toml $(CARGO_FLAGS)
 
@@ -76,13 +79,22 @@ endif
 
 #----------------------------------------------------------------------------------------------
 
-test: cargo_test
+test: cargo_test_workspace
 
-cargo_test:
-	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --workspace $(CARGO_FLAGS)
-# export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --doc --workspace $(CARGO_FLAGS)
+cargo_test_workspace: build
+	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --workspace \
+		--exclude redisxann-hnsw \
+		--exclude redisxann-usearch \
+		--exclude redisxann-faiss \
+		$(CARGO_FLAGS)
 
-.PHONY: test cargo_test
+cargo_test: build
+	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --tests $(CARGO_FLAGS)
+
+cargo_test_doc:
+	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --doc --workspace $(CARGO_FLAGS)
+
+.PHONY: test cargo_test cargo_test_workspace cargo_test_doc
 
 #----------------------------------------------------------------------------------------------
 
@@ -94,3 +106,5 @@ info:
 	cargo --version
 	rustup --version
 	rustup show
+
+.PHONY: info

@@ -1,4 +1,4 @@
-use crate::hnsw::metrics;
+use hnswcore::metrics;
 
 #[test]
 fn diff_is_zero() {
