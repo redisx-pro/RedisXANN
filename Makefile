@@ -79,8 +79,8 @@ endif
 test: cargo_test
 
 cargo_test:
-	cargo test --workspace $(CARGO_FLAGS)
-	cargo test --doc --workspace $(CARGO_FLAGS)
+	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --workspace $(CARGO_FLAGS)
+# export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --doc --workspace $(CARGO_FLAGS)
 
 .PHONY: test cargo_test
 

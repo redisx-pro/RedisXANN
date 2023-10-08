@@ -25,6 +25,10 @@ name = "vsstest"
 path = "rust/tests/integration_usearch.rs"
 name = "usearch"
 
+[[test]]
+path = "rust/tests/integration_hnsw.rs"
+name = "hnsw"
+
 [dependencies]
 redis-module = { version = "2.0.5", features = ["default"] }
 usearch = "2.6.0"

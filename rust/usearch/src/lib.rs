@@ -9,7 +9,7 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     }
 
     ctx.log_notice(format!("{:?}", args).as_str());
-    Ok("ok".into())
+    Ok("OK".into())
 }
 
 fn get_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
@@ -19,7 +19,7 @@ fn get_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     }
 
     ctx.log_notice(format!("{:?}", args).as_str());
-    Ok("ok".into())
+    Ok("".into())
 }
 
 fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
@@ -29,7 +29,7 @@ fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     }
 
     ctx.log_notice(format!("{:?}", args).as_str());
-    Ok("ok".into())
+    Ok("".into())
 }
 
 fn scan_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
@@ -39,7 +39,7 @@ fn scan_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     }
 
     ctx.log_notice(format!("{:?}", args).as_str());
-    Ok("ok".into())
+    Ok("".into())
 }
 
 redis_module! {

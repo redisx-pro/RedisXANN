@@ -3,14 +3,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "6372-redisxann",
+            "name": "6372-redisxann-vsstest",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/redis/src/redis-server",
             "args": [
                 "--port 6372",
-                "--loadmodule  ${workspaceFolder}/target/debug/libredisxann.dylib",
-                "--dbfilename dump.6372.rdb"
+                "--loadmodule  ${workspaceFolder}/target/debug/examples/libvsstest.dylib",
+                "--dbfilename dump.6372.rdb",
+                "--loglevel debug",
                 //"--activerehashing no",
             ],
             "stopAtEntry": false,
@@ -19,7 +20,109 @@
                 {
                     "name": "LD_LIBRARY_PATH",
                     "value": "/usr/local/lib"
-                }
+                },
+            ],
+            "externalConsole": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "linux": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "/usr/bin/gdb"
+            },
+            "osx": {
+                "MIMode": "lldb"
+            },
+            "windows": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+            }
+        },
+        {
+            "name": "6371-redisxann-hnsw",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/redis/src/redis-server",
+            "args": [
+                "--port 6371",
+                "--loadmodule  ${workspaceFolder}/target/debug/libredisxann_hnsw.dylib",
+                "--dbfilename dump.6371.rdb",
+                "--loglevel debug",
+                //"--activerehashing no",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "/usr/local/lib"
+                },
+            ],
+            "externalConsole": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "linux": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "/usr/bin/gdb"
+            },
+            "osx": {
+                "MIMode": "lldb"
+            },
+            "windows": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+            }
+        },
+        {
+            "name": "6373-redisxann-usearch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/redis/src/redis-server",
+            "args": [
+                "--port 6373",
+                "--loadmodule  ${workspaceFolder}/target/debug/libredisxann_usearch.dylib",
+                "--dbfilename dump.6373.rdb",
+                "--loglevel debug",
+                //"--activerehashing no",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "/usr/local/lib"
+                },
+            ],
+            "externalConsole": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "linux": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "/usr/bin/gdb"
+            },
+            "osx": {
+                "MIMode": "lldb"
+            },
+            "windows": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+            }
+        },
+        {
+            "name": "6374-redisxann-faiss",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/redis/src/redis-server",
+            "args": [
+                "--port 6374",
+                "--loadmodule  ${workspaceFolder}/target/debug/libredisxann_faiss.dylib",
+                "--dbfilename dump.6374.rdb",
+                "--loglevel debug",
+                //"--activerehashing no",
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "/usr/local/lib"
+                },
             ],
             "externalConsole": false,
             "internalConsoleOptions": "openOnSessionStart",

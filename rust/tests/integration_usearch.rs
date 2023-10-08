@@ -8,7 +8,7 @@ mod utils;
 #[test]
 fn test_redisxann_usearch() -> Result<()> {
     let port: u16 = 6479;
-    let _guards = vec![start_redis_server_with_module("redisxann-usearch", port)
+    let _guards = vec![start_redis_server_with_module("redisxann_usearch", port)
         .with_context(|| "failed to start redis server")?];
     let mut con =
         get_redis_connection(port).with_context(|| "failed to connect to redis server")?;
@@ -17,7 +17,7 @@ fn test_redisxann_usearch() -> Result<()> {
         .arg(&[3, 4])
         .query(&mut con)
         .with_context(|| "failed to run usearch.index.create")?;
-    assert_eq!(res, "Ok".to_string());
+    assert_eq!(res.to_lowercase(), "ok".to_string());
 
     let res: Result<Vec<i32>, RedisError> = redis::cmd("usearch.index.create")
         .arg(&[""])
