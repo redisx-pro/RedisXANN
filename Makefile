@@ -9,7 +9,7 @@ make build_hnsw		# build hnsw crate
 make build_usearch	# build usearch crate
 make build_faiss	# build faiss crate
 make build
-  DEBUG=1          # build debug variant
+  RELEASE=1          # build release variant
 
 make clean         # remove binary files
   ALL=1            # remove binary directories
@@ -33,11 +33,11 @@ include $(MK)/rules
 
 #----------------------------------------------------------------------------------------------
 
-ifeq ($(DEBUG),1)
-TARGET_DIR=target/debug
-else
+ifeq ($(RELEASE),1)
 CARGO_FLAGS += --release
 TARGET_DIR=target/release
+else
+TARGET_DIR=target/debug
 endif
 
 #----------------------------------------------------------------------------------------------
