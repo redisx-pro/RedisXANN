@@ -1,5 +1,8 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
+#[allow(dead_code, unused_variables, unused_mut)]
+mod types;
+
 use redis_module::{redis_module, Context, RedisError, RedisResult, RedisString};
 
 fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
@@ -42,10 +45,24 @@ fn scan_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok("".into())
 }
 
+#[cfg(not(test))]
+macro_rules! get_allocator {
+    () => {
+        redis_module::alloc::RedisAlloc
+    };
+}
+
+#[cfg(test)]
+macro_rules! get_allocator {
+    () => {
+        std::alloc::System
+    };
+}
+
 redis_module! {
     name: "redisxann-usearch",
     version: 1,
-    allocator: (redis_module::alloc::RedisAlloc, redis_module::alloc::RedisAlloc),
+    allocator: (get_allocator!(), get_allocator!()),
     data_types: [],
     commands: [
         ["usearch.index.create", create_index, "write", 0, 0, 0],

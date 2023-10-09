@@ -43,7 +43,7 @@ fn hnsw_test() {
 
     // search
     let query = vec![10.0; 4];
-    let res = index.search_knn(&query, 5).unwrap();
+    let res = index.search_kann(&query, 5).unwrap();
     assert_eq!(res.len(), 5);
     assert!((res[0].sim.into_inner() - 0.0).abs() < f32::EPSILON);
     assert_eq!(res[0].name.as_str(), "node10");

@@ -21,7 +21,9 @@ path = "src/lib.rs"
 
 [dependencies]
 redis-module = { version = "2.0.5", features = ["default"] }
-usearch = "2.6.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+usearch = { version = "2.6.0", path = "../../deps/usearch" }
 
 [dev-dependencies]
 redis-module = { version = "2.0.5", features = ["default"] }

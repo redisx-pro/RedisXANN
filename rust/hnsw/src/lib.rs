@@ -415,12 +415,13 @@ fn delete_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok(1_usize.into())
 }
 
-// search_knn
-// cmd: hnsw.search.knn indexName topK queryVector
-// cmd eg: hnsw.search.knn idx0 6 0.0 0.0 0.0
-// return top K NN node infos or error
+// search_kann
+// k-Approximate Nearest Neighbors (kANN) Search
+// cmd: hnsw.search.kann indexName topK queryVector
+// cmd eg: hnsw.search.kann idx0 6 0.0 0.0 0.0
+// return top K ANN node infos or error
 // todo: add filter
-fn search_knn(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
+fn search_kann(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
 
     if args.len() <= 3 {
@@ -443,7 +444,7 @@ fn search_knn(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     ctx.log_debug(format!("Searching for {} nearest nodes in Index: {}", k, index_name).as_str());
 
-    match index.search_knn(&data, k) {
+    match index.search_kann(&data, k) {
         Ok(res) => {
             let mut reply: Vec<RedisValue> = Vec::new();
             reply.push(res.len().into());
@@ -457,10 +458,24 @@ fn search_knn(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     }
 }
 
+#[cfg(not(test))]
+macro_rules! get_allocator {
+    () => {
+        redis_module::alloc::RedisAlloc
+    };
+}
+
+#[cfg(test)]
+macro_rules! get_allocator {
+    () => {
+        std::alloc::System
+    };
+}
+
 redis_module! {
     name: "redisxann-hnsw",
     version: 1,
-    allocator: (redis_module::alloc::RedisAlloc, redis_module::alloc::RedisAlloc),
+    allocator: (get_allocator!(), get_allocator!()),
     data_types: [
         HNSW_INDEX_REDIS_TYPE,
         HNSW_NODE_REDIS_TYPE,
@@ -472,6 +487,6 @@ redis_module! {
         [format!("{}.node.add", PREFIX), add_node, "write", 0, 0, 0],
         [format!("{}.node.get", PREFIX), get_node, "readonly", 0, 0, 0],
         [format!("{}.node.del", PREFIX), delete_node, "write", 0, 0, 0],
-        [format!("{}.search.knn", PREFIX), search_knn, "readonly", 0, 0, 0],
+        [format!("{}.search.kann", PREFIX), search_kann, "readonly", 0, 0, 0],
     ],
 }

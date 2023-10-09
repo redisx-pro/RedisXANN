@@ -157,7 +157,7 @@ impl From<IndexRedis> for RedisValue {
 }
 
 pub static HNSW_INDEX_REDIS_TYPE: RedisType = RedisType::new(
-    "hnswindex",
+    "hnsw.index",
     INDEX_VERSION,
     raw::RedisModuleTypeMethods {
         version: raw::REDISMODULE_TYPE_METHOD_VERSION as u64,
@@ -189,6 +189,10 @@ pub static HNSW_INDEX_REDIS_TYPE: RedisType = RedisType::new(
 );
 
 unsafe extern "C" fn free_index(value: *mut c_void) {
+    if value.is_null() {
+        // on Redis 6.0 we might get a NULL value here, so we need to handle it.
+        return;
+    }
     drop(Box::from_raw(value as *mut IndexRedis));
 }
 
@@ -367,7 +371,7 @@ impl From<&NodeRedis> for RedisValue {
 }
 
 pub static HNSW_NODE_REDIS_TYPE: RedisType = RedisType::new(
-    "hnswnodet",
+    "hnsw.node",
     NODE_VERSION,
     raw::RedisModuleTypeMethods {
         version: raw::REDISMODULE_TYPE_METHOD_VERSION as u64,

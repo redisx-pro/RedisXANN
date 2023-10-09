@@ -474,7 +474,7 @@ where
         Ok(())
     }
 
-    pub fn search_knn(&self, data: &[T], k: usize) -> Result<Vec<SearchResult<T, R>>, HNSWError> {
+    pub fn search_kann(&self, data: &[T], k: usize) -> Result<Vec<SearchResult<T, R>>, HNSWError> {
         if data.len() != self.data_dim {
             return Err(format!("data dimension: {} does not match Index", data.len()).into());
         }
@@ -482,7 +482,7 @@ where
             return Ok(Vec::new());
         }
 
-        Ok(self.search_knn_internal(data, k, self.ef_construction))
+        Ok(self.search_kann_internal(data, k, self.ef_construction))
     }
 
     // perform insertion of new nodes into the index
@@ -862,7 +862,7 @@ where
         updated
     }
 
-    fn search_knn_internal(&self, query: &[T], k: usize, ef: usize) -> Vec<SearchResult<T, R>> {
+    fn search_kann_internal(&self, query: &[T], k: usize, ef: usize) -> Vec<SearchResult<T, R>> {
         let mut ep = self.enterpoint.as_ref().unwrap().clone();
         let l_max = self.max_layer;
 
