@@ -80,7 +80,7 @@ make -C build_release -j faiss faiss_avx2 swigfaiss test
 make -C build_release install
 ```
 
-- build redisxann module
+- build redisxann modules, see [Makefile](../Makefile); run `make build`, or `make help` to build
 ```shell
 export LIBRARY_PATH=/usr/local/lib
 # http://matthew-brett.github.io/docosx/mac_runtime_link.html
@@ -89,7 +89,11 @@ RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build
 #RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --release
 ```
 
-- run 
+- run examples
 ```shell
-redis-server --loadmodule ./target/debug/libredisxann.dylib --port 6370 --dbfilename dump.6370.rdb
+redis-server --loadmodule ./target/debug/examples/libvsstest.dylib --port 6370 --dbfilename dump.6370.rdb
 ```
+
+- run tests, see see [Makefile](../Makefile); run `make test`, or `make help` to test 
+
+have fun  : )
