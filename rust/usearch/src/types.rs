@@ -1,21 +1,108 @@
 use std::ffi::CString;
-use std::os::raw::c_void;
-use std::ptr::NonNull;
-use std::{fmt, path, ptr};
+use std::os::raw::{c_int, c_void};
+use std::{fmt, ptr};
 
 use redis_module::native_types::RedisType;
 use redis_module::{raw, RedisString, RedisValue};
+use serde::{Deserialize, Serialize};
 
-use usearch::ffi::IndexOptions;
+use usearch::ffi::{IndexOptions, MetricKind, ScalarKind};
+use usearch::Index;
 
 static INDEX_VERSION: i32 = 0;
 
-#[derive(Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+enum MKind {
+    IP,
+    L2sq,
+    Cos,
+    Pearson,
+    Haversine,
+    Hamming,
+    Tanimoto,
+    Sorensen,
+}
+impl MKind {
+    fn map_metric_kind(&self) -> MetricKind {
+        match self {
+            Self::IP => MetricKind::IP,
+            Self::L2sq => MetricKind::L2sq,
+            Self::Cos => MetricKind::Cos,
+            Self::Pearson => MetricKind::Pearson,
+            Self::Haversine => MetricKind::Haversine,
+            Self::Hamming => MetricKind::Hamming,
+            Self::Tanimoto => MetricKind::Tanimoto,
+            Self::Sorensen => MetricKind::Sorensen,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+enum SKind {
+    F64,
+    F32,
+    F16,
+    I8,
+    B1,
+}
+impl SKind {
+    fn map_scalar_kind(&self) -> ScalarKind {
+        match self {
+            Self::F64 => ScalarKind::F64,
+            Self::F32 => ScalarKind::F32,
+            Self::F16 => ScalarKind::F16,
+            Self::I8 => ScalarKind::I8,
+            Self::B1 => ScalarKind::B1,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct IndexOpts {
+    dimensions: usize,
+    metric: MKind,
+    quantization: SKind,
+    connectivity: usize,
+    expansion_add: usize,
+    expansion_search: usize,
+    multi: bool,
+}
+impl Default for IndexOpts {
+    fn default() -> Self {
+        Self {
+            dimensions: 128,
+            metric: MKind::IP,
+            quantization: SKind::F32,
+            connectivity: 32,
+            expansion_add: 2,
+            expansion_search: 3,
+            multi: false,
+        }
+    }
+}
+
+// IndexOpts -> IndexOptions
+impl From<IndexOpts> for IndexOptions {
+    fn from(opts: IndexOpts) -> Self {
+        IndexOptions {
+            dimensions: (opts.dimensions),
+            metric: (MKind::map_metric_kind(&opts.metric)),
+            quantization: (SKind::map_scalar_kind(&opts.quantization)),
+            connectivity: (opts.connectivity),
+            expansion_add: (opts.expansion_add),
+            expansion_search: (opts.expansion_search),
+            multi: (opts.multi),
+        }
+    }
+}
+
+#[derive(Default)]
 pub struct IndexRedis {
-    pub name: String,             // index name
-    pub index_opts: IndexOptions, // usearch index options
+    pub name: String,          // index name
+    pub index_opts: IndexOpts, // usearch index options
+    pub index: Option<Index>,  // usearch index
     // pub serialization_buffer: Vec<u8>, // usearch index serialization buffer for save/load
-    pub serialization_file_path: String, // usearch index serialization file path
+    pub serialization_file_path: String, // usearch index serialization file path for save/load
     pub serialized_length: usize,        // usearch index saved serialized buffer length
     pub index_size: usize,               // usearch index size
     pub index_capacity: usize,           // usearch index capacity
@@ -32,6 +119,10 @@ impl fmt::Debug for IndexRedis {
             connectivity: {}, \
             expansion_add: {}, \
             expansion_search: {}, \
+            serialization_file_path: {}, \
+            serialized_length: {}, \
+            index_size: {}, \
+            index_capacity: {}, \
             ",
             self.name,
             self.index_opts.dimensions,
@@ -40,6 +131,10 @@ impl fmt::Debug for IndexRedis {
             self.index_opts.connectivity,
             self.index_opts.expansion_add,
             self.index_opts.expansion_search,
+            self.serialization_file_path,
+            self.serialized_length,
+            self.index_size,
+            self.index_capacity,
         )
     }
 }
@@ -69,6 +164,15 @@ impl From<IndexRedis> for RedisValue {
         reply.push("expansion_search".into());
         reply.push(index.index_opts.expansion_search.into());
 
+        reply.push("serialization_file_path".into());
+        reply.push(index.serialization_file_path.as_str().into());
+        reply.push("serialized_length".into());
+        reply.push(index.serialized_length.into());
+        reply.push("index_size".into());
+        reply.push(index.index_size.into());
+        reply.push("index_capacity".into());
+        reply.push(index.index_capacity.into());
+
         reply.into()
     }
 }
@@ -84,7 +188,7 @@ pub static USEARCH_INDEX_REDIS_TYPE: RedisType = RedisType::new(
         free: Some(free_index),
 
         // Currently unused by Redis
-        mem_usage: None,
+        mem_usage: Some(mem_usage),
         digest: None,
 
         // Aux data
@@ -107,28 +211,78 @@ pub static USEARCH_INDEX_REDIS_TYPE: RedisType = RedisType::new(
 
 unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void) {
     let index = Box::from_raw(value as *mut IndexRedis);
-    let ctx = ptr::null_mut();
 
-    let name = RedisString::create(NonNull::new(ctx), index.name);
-    raw::RedisModule_SaveString.unwrap()(rdb, name.inner);
+    let name_cstring = CString::new(index.name).unwrap();
+    raw::save_string(rdb, name_cstring.to_str().unwrap());
 
     let opts_serialized_json = serde_json::to_string(&index.index_opts).unwrap();
     let opts_cjson = CString::new(opts_serialized_json).unwrap();
     raw::save_string(rdb, opts_cjson.to_str().unwrap());
 
-    let path_cjson = CString::new(index.serialization_file_path).unwrap();
-    raw::save_string(rdb, path_cjson.to_str().unwrap());
+    let path_cstring = CString::new(index.serialization_file_path.as_str()).unwrap();
+    raw::save_string(rdb, path_cstring.to_str().unwrap());
+
+    // match options Some/None
+    if index.index.is_some() {
+        let _ = index
+            .index
+            .unwrap()
+            .save(index.serialization_file_path.as_str())
+            .is_err_and(|e| {
+                panic!(
+                    "save usearch index to {} fail! err {}",
+                    index.serialization_file_path,
+                    e.to_string()
+                )
+            });
+    } else {
+        panic!("usearch index un init");
+    }
 }
 
-unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, version: i32) -> *mut c_void {
-    if version != INDEX_VERSION {
-        return ptr::null_mut() as *mut c_void;
+unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, encver: c_int) -> *mut c_void {
+    match encver {
+        0 => {
+            let mut index = Box::new(IndexRedis::default());
+            index.name = RedisString::from_ptr(raw::RedisModule_LoadString.unwrap()(rdb))
+                .unwrap()
+                .to_owned();
+
+            let index_opts_json = RedisString::from_ptr(raw::RedisModule_LoadString.unwrap()(rdb))
+                .unwrap()
+                .to_owned();
+            index.index_opts = serde_json::from_str(&index_opts_json).unwrap();
+
+            index.index = Some(Index::new(&index.index_opts.clone().into()).unwrap());
+
+            index.serialization_file_path =
+                RedisString::from_ptr(raw::RedisModule_LoadString.unwrap()(rdb))
+                    .unwrap()
+                    .to_owned();
+
+            let idx = index
+                .index
+                .as_ref()
+                .unwrap_or_else(|| panic!("usearch index un init"));
+            let _ = idx
+                .load(index.serialization_file_path.as_str())
+                .is_err_and(|e| {
+                    panic!(
+                        "load fail! from file {} err {}",
+                        index.serialization_file_path,
+                        e.to_string()
+                    )
+                });
+
+            index.index_capacity = idx.capacity();
+            index.index_size = idx.size();
+            index.serialized_length = idx.serialized_length();
+
+            let index: *mut c_void = Box::into_raw(index) as *mut c_void;
+            index
+        }
+        _ => ptr::null_mut() as *mut c_void,
     }
-
-    let mut index = Box::new(IndexRedis::default());
-
-    let index: *mut c_void = Box::into_raw(index) as *mut c_void;
-    index
 }
 
 unsafe extern "C" fn free_index(value: *mut c_void) {
@@ -137,4 +291,9 @@ unsafe extern "C" fn free_index(value: *mut c_void) {
         return;
     }
     drop(Box::from_raw(value as *mut IndexRedis));
+}
+
+unsafe extern "C" fn mem_usage(value: *const c_void) -> usize {
+    let index = Box::from_raw(value as *mut IndexRedis);
+    index.index.as_ref().unwrap().memory_usage()
 }

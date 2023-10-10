@@ -1,6 +1,7 @@
 # Build
 Cargo.lock
 /target
+/bin
 
 # IDE
 .vscode
