@@ -476,10 +476,7 @@ redis_module! {
     name: "redisxann-hnsw",
     version: 1,
     allocator: (get_allocator!(), get_allocator!()),
-    data_types: [
-        HNSW_INDEX_REDIS_TYPE,
-        HNSW_NODE_REDIS_TYPE,
-    ],
+    data_types: [ HNSW_INDEX_REDIS_TYPE, HNSW_NODE_REDIS_TYPE ],
     commands: [
         [format!("{}.index.create", PREFIX), create_index, "write", 0, 0, 0],
         [format!("{}.index.get", PREFIX), get_index, "readonly", 0, 0, 0],

@@ -177,8 +177,9 @@ impl From<IndexRedis> for RedisValue {
     }
 }
 
+// note: Redis requires the length of native type names to be exactly 9 characters
 pub static USEARCH_INDEX_REDIS_TYPE: RedisType = RedisType::new(
-    "usearch.index",
+    "usearchdx",
     INDEX_VERSION,
     raw::RedisModuleTypeMethods {
         version: raw::REDISMODULE_TYPE_METHOD_VERSION as u64,

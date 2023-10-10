@@ -156,8 +156,9 @@ impl From<IndexRedis> for RedisValue {
     }
 }
 
+// note: Redis requires the length of native type names to be exactly 9 characters
 pub static HNSW_INDEX_REDIS_TYPE: RedisType = RedisType::new(
-    "hnsw.index",
+    "hnswindex",
     INDEX_VERSION,
     raw::RedisModuleTypeMethods {
         version: raw::REDISMODULE_TYPE_METHOD_VERSION as u64,
@@ -370,8 +371,10 @@ impl From<&NodeRedis> for RedisValue {
     }
 }
 
+// note: Redis requires the length of native type names to be exactly 9 characters
+//  hnsw.node is not ok. => Error: created data type is null
 pub static HNSW_NODE_REDIS_TYPE: RedisType = RedisType::new(
-    "hnsw.node",
+    "hnswnodex",
     NODE_VERSION,
     raw::RedisModuleTypeMethods {
         version: raw::REDISMODULE_TYPE_METHOD_VERSION as u64,
