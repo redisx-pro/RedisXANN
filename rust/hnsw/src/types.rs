@@ -5,6 +5,7 @@ use num_traits::Float;
 use rand::prelude::*;
 use std::collections::HashMap;
 use std::convert::From;
+use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr::NonNull;
 use std::{fmt, ptr};
@@ -261,15 +262,17 @@ unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, version: i32) -> *
 }
 
 unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void) {
-    let index = Box::from_raw(value as *mut IndexRedis);
+    // fix: bug multi save, the second op can't get IndexRedis value.
+    //let index = Box::from_raw(value as *mut IndexRedis);
+    let index = unsafe { &*value.cast::<IndexRedis>() };
 
     let ctx = ptr::null_mut();
 
-    let name = RedisString::create(NonNull::new(ctx), index.name);
-    raw::RedisModule_SaveString.unwrap()(rdb, name.inner);
+    let name_cstring = CString::new(index.name.as_bytes()).unwrap();
+    raw::save_string(rdb, name_cstring.to_str().unwrap());
 
-    let mfunc_kind = RedisString::create(NonNull::new(ctx), index.mfunc_kind);
-    raw::RedisModule_SaveString.unwrap()(rdb, mfunc_kind.inner);
+    let mfunc_kind_cstring = CString::new(index.mfunc_kind.as_bytes()).unwrap();
+    raw::save_string(rdb, mfunc_kind_cstring.to_str().unwrap());
 
     raw::RedisModule_SaveUnsigned.unwrap()(rdb, index.data_dim as u64);
     raw::RedisModule_SaveUnsigned.unwrap()(rdb, index.m as u64);
@@ -281,22 +284,22 @@ unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void
     raw::RedisModule_SaveUnsigned.unwrap()(rdb, index.max_layer as u64);
 
     raw::RedisModule_SaveUnsigned.unwrap()(rdb, index.layers.len() as u64);
-    for layer in index.layers {
+    for layer in index.layers.as_slice() {
         raw::RedisModule_SaveUnsigned.unwrap()(rdb, layer.len() as u64);
         for n in layer {
-            let s = RedisString::create(NonNull::new(ctx), n);
+            let s = RedisString::create(NonNull::new(ctx), n.as_str());
             raw::RedisModule_SaveString.unwrap()(rdb, s.inner);
         }
     }
 
     raw::RedisModule_SaveUnsigned.unwrap()(rdb, index.nodes.len() as u64);
-    for n in index.nodes {
-        let s = RedisString::create(NonNull::new(ctx), n);
+    for n in index.nodes.as_slice() {
+        let s = RedisString::create(NonNull::new(ctx), n.as_str());
         raw::RedisModule_SaveString.unwrap()(rdb, s.inner);
     }
 
     let ep = if index.enterpoint.is_some() {
-        RedisString::create(NonNull::new(ctx), index.enterpoint.unwrap())
+        RedisString::create(NonNull::new(ctx), index.enterpoint.clone().unwrap())
     } else {
         RedisString::create(NonNull::new(ctx), "null")
     };
@@ -445,18 +448,20 @@ unsafe extern "C" fn load_node(rdb: *mut raw::RedisModuleIO, version: i32) -> *m
 unsafe extern "C" fn save_node(rdb: *mut raw::RedisModuleIO, value: *mut c_void) {
     let ctx = ptr::null_mut();
 
-    let node = Box::from_raw(value as *mut NodeRedis);
+    // fix: bug multi save, the second op can't get IndexRedis value.
+    // let node = Box::from_raw(value as *mut NodeRedis);
+    let node = unsafe { &*value.cast::<NodeRedis>() };
 
     raw::RedisModule_SaveUnsigned.unwrap()(rdb, node.data.len() as u64);
-    for datum in node.data {
-        raw::RedisModule_SaveFloat.unwrap()(rdb, datum);
+    for datum in node.data.as_slice() {
+        raw::RedisModule_SaveFloat.unwrap()(rdb, *datum);
     }
 
     raw::RedisModule_SaveUnsigned.unwrap()(rdb, node.neighbors.len() as u64);
-    for l in node.neighbors {
+    for l in node.neighbors.as_slice() {
         raw::RedisModule_SaveUnsigned.unwrap()(rdb, l.len() as u64);
         for n in l {
-            let s = RedisString::create(NonNull::new(ctx), n);
+            let s = RedisString::create(NonNull::new(ctx), n.as_str());
             raw::RedisModule_SaveString.unwrap()(rdb, s.inner);
         }
     }

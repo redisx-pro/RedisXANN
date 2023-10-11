@@ -240,11 +240,11 @@ pub static USEARCH_INDEX_REDIS_TYPE: RedisType = RedisType::new(
 );
 
 unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void) {
-    // todo: fix bug multi save, the second op can't get IndexRedis value ??
-    let index = Box::from_raw(value as *mut IndexRedis);
-    //let index = unsafe { &*value.cast::<IndexRedis>() };
+    // fix: bug multi save, the second op can't get IndexRedis value.
+    // let index = Box::from_raw(value as *mut IndexRedis);
+    let index = unsafe { &*value.cast::<IndexRedis>() };
 
-    let name_cstring = CString::new(index.name).unwrap();
+    let name_cstring = CString::new(index.name.as_bytes()).unwrap();
     raw::save_string(rdb, name_cstring.to_str().unwrap());
 
     let opts_serialized_json = serde_json::to_string(&index.index_opts).unwrap();
@@ -258,6 +258,7 @@ unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void
     if index.index.is_some() {
         let _ = index
             .index
+            .as_ref()
             .unwrap()
             .save(index.serialization_file_path.as_str())
             .is_err_and(|e| {
