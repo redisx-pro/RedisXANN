@@ -18,8 +18,7 @@ static PREFIX: &str = "hnsw";
 type IndexT = Index<f32, f32>;
 type IndexArc = Arc<RwLock<IndexT>>;
 lazy_static! {
-    static ref INDICES: Arc<RwLock<HashMap<String, IndexArc>>> =
-        Arc::new(RwLock::new(HashMap::new()));
+    static ref INDICES: RwLock<HashMap<String, IndexArc>> = RwLock::new(HashMap::new());
 }
 
 // create_index

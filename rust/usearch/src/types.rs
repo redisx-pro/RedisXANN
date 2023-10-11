@@ -12,7 +12,7 @@ use usearch::Index;
 static INDEX_VERSION: i32 = 0;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-enum MKind {
+pub enum MKind {
     IP,
     L2sq,
     Cos,
@@ -23,6 +23,7 @@ enum MKind {
     Sorensen,
 }
 impl MKind {
+    // From<MKind> for MetricKind
     fn map_metric_kind(&self) -> MetricKind {
         match self {
             Self::IP => MetricKind::IP,
@@ -36,9 +37,24 @@ impl MKind {
         }
     }
 }
+impl From<String> for MKind {
+    fn from(opts: String) -> Self {
+        match opts.as_str() {
+            "f64" => Self::IP,
+            "l2sq" => Self::L2sq,
+            "cos" => Self::Cos,
+            "pearson" => Self::Pearson,
+            "haversine," => Self::Haversine,
+            "hamming" => Self::Hamming,
+            "tanimoto" => Self::Tanimoto,
+            "sorensen" => Self::Sorensen,
+            _ => Self::IP,
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-enum SKind {
+pub enum SKind {
     F64,
     F32,
     F16,
@@ -46,6 +62,7 @@ enum SKind {
     B1,
 }
 impl SKind {
+    // From<SKind> for ScalarKind
     fn map_scalar_kind(&self) -> ScalarKind {
         match self {
             Self::F64 => ScalarKind::F64,
@@ -56,16 +73,28 @@ impl SKind {
         }
     }
 }
+impl From<String> for SKind {
+    fn from(opts: String) -> Self {
+        match opts.as_str() {
+            "f64" => Self::F64,
+            "f32" => Self::F32,
+            "f16" => Self::F16,
+            "I8" => Self::I8,
+            "B1" => Self::B1,
+            _ => SKind::F32,
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct IndexOpts {
-    dimensions: usize,
-    metric: MKind,
-    quantization: SKind,
-    connectivity: usize,
-    expansion_add: usize,
-    expansion_search: usize,
-    multi: bool,
+    pub dimensions: usize,
+    pub metric: MKind,
+    pub quantization: SKind,
+    pub connectivity: usize,
+    pub expansion_add: usize,
+    pub expansion_search: usize,
+    pub multi: bool,
 }
 impl Default for IndexOpts {
     fn default() -> Self {
@@ -211,7 +240,9 @@ pub static USEARCH_INDEX_REDIS_TYPE: RedisType = RedisType::new(
 );
 
 unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void) {
+    // todo: fix bug multi save, the second op can't get IndexRedis value ??
     let index = Box::from_raw(value as *mut IndexRedis);
+    //let index = unsafe { &*value.cast::<IndexRedis>() };
 
     let name_cstring = CString::new(index.name).unwrap();
     raw::save_string(rdb, name_cstring.to_str().unwrap());
@@ -278,6 +309,8 @@ unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, encver: c_int) -> 
             index.index_capacity = idx.capacity();
             index.index_size = idx.size();
             index.serialized_length = idx.serialized_length();
+
+            println!("load Usearch Index {:?}", index);
 
             let index: *mut c_void = Box::into_raw(index) as *mut c_void;
             index
