@@ -4,8 +4,8 @@
 extern crate lazy_static;
 
 use std::collections::HashMap;
-use std::env;
 use std::sync::{Arc, RwLock};
+use std::{env, fs};
 
 //#[allow(dead_code, unused_variables, unused_mut)]
 mod types;
@@ -17,7 +17,8 @@ use usearch::Index;
 static PREFIX: &str = "usearch";
 static SUFFIX: &str = "idx";
 static MODULE_NAME: &str = "redisxann-usearch";
-static PATH_DIR_NAME: &str = "serialization_file_path_dir";
+static ARG_PATH_DIR_NAME: &str = "serialization_file_path_dir";
+static ARG_REMOVE_SERIALIZED_FILE: &str = "is_remove_serialized_file";
 
 lazy_static! {
     static ref INDICES: RwLock<HashMap<String, Index>> = RwLock::new(HashMap::new());
@@ -25,7 +26,7 @@ lazy_static! {
     // just use init load args, then read it's args for cmd,,
     static ref MODULE_ARGS_MAP: RwLock<HashMap<String, String>> = {
         let mut m = HashMap::new();
-        m.insert(PATH_DIR_NAME.to_string(), env::current_dir().unwrap().to_string_lossy().to_string());
+        m.insert(ARG_PATH_DIR_NAME.to_string(), env::current_dir().unwrap().to_string_lossy().to_string());
         RwLock::new(m)
     };
 }
@@ -97,7 +98,7 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             redis_idx.serialization_file_path = MODULE_ARGS_MAP
                 .read()
                 .unwrap()
-                .get(PATH_DIR_NAME)
+                .get(ARG_PATH_DIR_NAME)
                 .unwrap()
                 .to_string();
             redis_idx
@@ -142,7 +143,7 @@ fn get_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 // cmd eg: usearch.index.del idx0
 // return 1 or error
 fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
-    ctx.auto_memory();
+    //ctx.auto_memory();
 
     if args.len() != 2 {
         return Err(RedisError::WrongArity);
@@ -153,12 +154,22 @@ fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     // get redisType value
     let index_name = ctx.create_string(name.clone());
-    let key = ctx.open_key(&index_name);
+    let key = ctx.open_key_writable(&index_name);
     let index_redis = key
         .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
 
-    // delete index
+    // remove serialized index file
+    let is_remove = MODULE_ARGS_MAP
+        .read()
+        .unwrap()
+        .get(ARG_REMOVE_SERIALIZED_FILE)
+        .is_some();
+    if is_remove {
+        fs::remove_file(index_redis.serialization_file_path.to_string())?;
+    }
+
+    // delete usearch index
     let res = index_redis.index.clone().unwrap().reset();
     if res.is_err() {
         return Err(RedisError::String(format!(
@@ -167,6 +178,9 @@ fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             res.err().unwrap()
         )));
     }
+
+    // finally delete redisType value
+    key.delete()?;
 
     Ok(1_usize.into())
 }
