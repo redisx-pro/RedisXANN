@@ -137,14 +137,38 @@ fn get_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok(index_redis.clone().into())
 }
 
+// delete_index
+// cmd: usearch.index.del indexName
+// cmd eg: usearch.index.del idx0
+// return 1 or error
 fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
-    if args.len() < 2 {
+
+    if args.len() != 2 {
         return Err(RedisError::WrongArity);
     }
 
-    ctx.log_notice(format!("{:?}", args).as_str());
-    Ok("".into())
+    let mut args = args.into_iter().skip(1);
+    let name = format!("{}.{}", PREFIX, args.next_str()?);
+
+    // get redisType value
+    let index_name = ctx.create_string(name.clone());
+    let key = ctx.open_key(&index_name);
+    let index_redis = key
+        .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
+        .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
+
+    // delete index
+    let res = index_redis.index.clone().unwrap().reset();
+    if res.is_err() {
+        return Err(RedisError::String(format!(
+            "Index: {} delete err {}",
+            name,
+            res.err().unwrap()
+        )));
+    }
+
+    Ok(1_usize.into())
 }
 
 fn scan_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
