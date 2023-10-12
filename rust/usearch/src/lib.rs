@@ -95,6 +95,14 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             redis_idx.name = name.clone();
             redis_idx.index_opts = opts.clone();
             let idx = usearch::Index::new(&opts.into()).unwrap();
+            let res = idx.reserve(10);
+            if res.is_err() {
+                return Err(RedisError::String(format!(
+                    "new Index {} reserve cap err {}",
+                    name,
+                    res.err().unwrap()
+                )));
+            }
             redis_idx.index_capacity = idx.capacity();
             redis_idx.index_size = idx.size();
             redis_idx.serialized_length = idx.serialized_length();
@@ -218,6 +226,7 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
 
     // add node to index
+    // todo: need check index cap and size, Manual reserve, maybe wait usearch v3?
     ctx.log_debug(format!("Adding node: {} to Index: {}", node_name, index_name).as_str());
     let res = index_redis
         .index

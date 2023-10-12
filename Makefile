@@ -56,6 +56,9 @@ RUST_SOEXT.macos=dylib
 build:
 	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --all --all-targets $(CARGO_FLAGS)
 
+build_example:
+	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --examples
+
 build_faiss:
 	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo build --manifest-path rust/faiss/Cargo.toml $(CARGO_FLAGS)
 
