@@ -8,6 +8,8 @@ Cargo.lock
 
 # data
 *.rdb
+*.idx
 
 # soft link
 redis
+

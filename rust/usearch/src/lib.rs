@@ -5,7 +5,7 @@ extern crate lazy_static;
 
 use std::collections::HashMap;
 use std::env;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 //#[allow(dead_code, unused_variables, unused_mut)]
 mod types;
@@ -15,6 +15,7 @@ use redis_module::{redis_module, Context, NextArg, RedisError, RedisResult, Redi
 use usearch::Index;
 
 static PREFIX: &str = "usearch";
+static SUFFIX: &str = "idx";
 static MODULE_NAME: &str = "redisxann-usearch";
 static PATH_DIR_NAME: &str = "serialization_file_path_dir";
 
@@ -41,8 +42,8 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     let mut args = args.into_iter().skip(1);
     let name = format!("{}.{}", PREFIX, args.next_str()?);
-
     let index_name = ctx.create_string(name.clone());
+
     if args.next_str()?.to_lowercase() != "dim" {
         return Err(RedisError::WrongArity);
     }
@@ -87,6 +88,8 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
             // create index
             let mut redis_idx = IndexRedis::default();
+            redis_idx.name = name.clone();
+            redis_idx.index_opts = opts.clone();
             let idx = usearch::Index::new(&opts.into()).unwrap();
             redis_idx.index_capacity = idx.capacity();
             redis_idx.index_size = idx.size();
@@ -99,8 +102,8 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
                 .to_string();
             redis_idx
                 .serialization_file_path
-                .push_str(format!("/{}", name).as_str());
-            redis_idx.index = Some(idx);
+                .push_str(format!("/{}.{}", name, SUFFIX).as_str());
+            redis_idx.index = Some(Arc::new(idx));
 
             // set redisType value
             ctx.log_debug(format!("create Usearch Index {:?}", redis_idx).as_str());
@@ -111,14 +114,27 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok("OK".into())
 }
 
+// get_index
+// cmd: usearch.index.get indexName
+// cmd eg: usearch.index.get idx0
+// return indexInfo or error
 fn get_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
-    if args.len() < 2 {
+    if args.len() != 2 {
         return Err(RedisError::WrongArity);
     }
 
-    ctx.log_notice(format!("{:?}", args).as_str());
-    Ok("".into())
+    let mut args = args.into_iter().skip(1);
+    let name = format!("{}.{}", PREFIX, args.next_str()?);
+
+    // get redisType value
+    let index_name = ctx.create_string(name.clone());
+    let key = ctx.open_key(&index_name);
+    let index_redis = key
+        .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
+        .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
+
+    Ok(index_redis.clone().into())
 }
 
 fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {

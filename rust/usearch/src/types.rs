@@ -1,5 +1,6 @@
 use std::ffi::CString;
 use std::os::raw::{c_int, c_void};
+use std::sync::Arc;
 use std::{fmt, ptr};
 
 use redis_module::native_types::RedisType;
@@ -125,11 +126,11 @@ impl From<IndexOpts> for IndexOptions {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct IndexRedis {
-    pub name: String,          // index name
-    pub index_opts: IndexOpts, // usearch index options
-    pub index: Option<Index>,  // usearch index
+    pub name: String,              // index name
+    pub index_opts: IndexOpts,     // usearch index options
+    pub index: Option<Arc<Index>>, // usearch index
     // pub serialization_buffer: Vec<u8>, // usearch index serialization buffer for save/load
     pub serialization_file_path: String, // usearch index serialization file path for save/load
     pub serialized_length: usize,        // usearch index saved serialized buffer length
@@ -173,7 +174,7 @@ impl From<IndexRedis> for RedisValue {
         let mut reply: Vec<RedisValue> = Vec::new();
 
         reply.push("name".into());
-        reply.push(index.name.as_str().into());
+        reply.push(index.name.into());
         reply.push("dimensions".into());
         reply.push(index.index_opts.dimensions.into());
 
@@ -227,9 +228,9 @@ pub static USEARCH_INDEX_REDIS_TYPE: RedisType = RedisType::new(
         aux_save2: None,
         aux_save_triggers: 0,
 
+        copy: Some(copy_index),
         free_effort: None,
         unlink: None,
-        copy: None,
         defrag: None,
 
         copy2: None,
@@ -244,7 +245,7 @@ unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void
     // let index = Box::from_raw(value as *mut IndexRedis);
     let index = unsafe { &*value.cast::<IndexRedis>() };
 
-    let name_cstring = CString::new(index.name.as_bytes()).unwrap();
+    let name_cstring = CString::new(index.name.as_str()).unwrap();
     raw::save_string(rdb, name_cstring.to_str().unwrap());
 
     let opts_serialized_json = serde_json::to_string(&index.index_opts).unwrap();
@@ -286,7 +287,9 @@ unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, encver: c_int) -> 
                 .to_owned();
             index.index_opts = serde_json::from_str(&index_opts_json).unwrap();
 
-            index.index = Some(Index::new(&index.index_opts.clone().into()).unwrap());
+            index.index = Some(Arc::new(
+                Index::new(&index.index_opts.clone().into()).unwrap(),
+            ));
 
             index.serialization_file_path =
                 RedisString::from_ptr(raw::RedisModule_LoadString.unwrap()(rdb))
@@ -300,11 +303,13 @@ unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, encver: c_int) -> 
             let _ = idx
                 .load(index.serialization_file_path.as_str())
                 .is_err_and(|e| {
-                    panic!(
+                    //panic!(
+                    println!(
                         "load fail! from file {} err {}",
                         index.serialization_file_path,
                         e.to_string()
-                    )
+                    );
+                    true
                 });
 
             index.index_capacity = idx.capacity();
@@ -331,4 +336,15 @@ unsafe extern "C" fn free_index(value: *mut c_void) {
 unsafe extern "C" fn mem_usage(value: *const c_void) -> usize {
     let index = Box::from_raw(value as *mut IndexRedis);
     index.index.as_ref().unwrap().memory_usage()
+}
+
+//#[allow(unused)]
+unsafe extern "C" fn copy_index(
+    _: *mut raw::RedisModuleString,
+    _: *mut raw::RedisModuleString,
+    value: *const c_void,
+) -> *mut c_void {
+    let idx = unsafe { &*value.cast::<IndexRedis>() };
+    let value = idx.clone();
+    Box::into_raw(Box::new(value)).cast::<c_void>()
 }

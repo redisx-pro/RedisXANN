@@ -268,10 +268,10 @@ unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void
 
     let ctx = ptr::null_mut();
 
-    let name_cstring = CString::new(index.name.as_bytes()).unwrap();
+    let name_cstring = CString::new(index.name.as_str()).unwrap();
     raw::save_string(rdb, name_cstring.to_str().unwrap());
 
-    let mfunc_kind_cstring = CString::new(index.mfunc_kind.as_bytes()).unwrap();
+    let mfunc_kind_cstring = CString::new(index.mfunc_kind.as_str()).unwrap();
     raw::save_string(rdb, mfunc_kind_cstring.to_str().unwrap());
 
     raw::RedisModule_SaveUnsigned.unwrap()(rdb, index.data_dim as u64);
