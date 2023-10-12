@@ -80,8 +80,8 @@ impl From<String> for SKind {
             "f64" => Self::F64,
             "f32" => Self::F32,
             "f16" => Self::F16,
-            "I8" => Self::I8,
-            "B1" => Self::B1,
+            "i8" => Self::I8,
+            "b1" => Self::B1,
             _ => SKind::F32,
         }
     }

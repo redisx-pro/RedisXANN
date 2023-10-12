@@ -12,6 +12,7 @@ mod types;
 use types::{IndexOpts, IndexRedis, USEARCH_INDEX_REDIS_TYPE};
 
 use redis_module::{redis_module, Context, NextArg, RedisError, RedisResult, RedisString, Status};
+use sonyflake::Sonyflake;
 use usearch::Index;
 
 static PREFIX: &str = "usearch";
@@ -29,6 +30,8 @@ lazy_static! {
         m.insert(ARG_PATH_DIR_NAME.to_string(), env::current_dir().unwrap().to_string_lossy().to_string());
         RwLock::new(m)
     };
+
+    static ref ID_GENER: Sonyflake = Sonyflake::new().unwrap();
 }
 
 // create_index
@@ -185,7 +188,75 @@ fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok(1_usize.into())
 }
 
-fn scan_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
+// add_node
+// cmd: usearch.node.add indexName nodeName dataVector
+// cmd eg: usearch.node.add idx0 n1 0.6 0.1 0.1
+// return "OK" or error
+fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
+    ctx.auto_memory();
+
+    if args.len() <= 3 {
+        return Err(RedisError::WrongArity);
+    }
+
+    let mut args = args.into_iter().skip(1);
+    let name = format!("{}.{}", PREFIX, args.next_str()?);
+    let node_name = format!("{}.{}", name, args.next_str()?);
+
+    let verctor = args
+        .into_iter()
+        .map(|d| d.parse_float().unwrap() as f32)
+        .collect::<Vec<f32>>();
+
+    let verctor_id = ID_GENER.next_id().unwrap();
+
+    // get redisType value
+    let index_name = ctx.create_string(name.clone());
+    let key = ctx.open_key(&index_name);
+    let index_redis = key
+        .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
+        .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
+
+    // add node to index
+    ctx.log_debug(format!("Adding node: {} to Index: {}", node_name, index_name).as_str());
+    let res = index_redis
+        .index
+        .clone()
+        .unwrap()
+        .add(verctor_id, verctor.as_ref());
+    if res.is_err() {
+        return Err(RedisError::String(format!(
+            "Index: {} add node {} err {}",
+            name,
+            node_name,
+            res.err().unwrap()
+        )));
+    }
+
+    Ok("OK".into())
+}
+
+fn get_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
+    ctx.auto_memory();
+    if args.len() < 2 {
+        return Err(RedisError::WrongArity);
+    }
+
+    ctx.log_notice(format!("{:?}", args).as_str());
+    Ok("".into())
+}
+
+fn delete_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
+    ctx.auto_memory();
+    if args.len() < 2 {
+        return Err(RedisError::WrongArity);
+    }
+
+    ctx.log_notice(format!("{:?}", args).as_str());
+    Ok("".into())
+}
+
+fn search_kann(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
     if args.len() < 2 {
         return Err(RedisError::WrongArity);
@@ -219,7 +290,10 @@ redis_module! {
         [format!("{}.index.create", PREFIX), create_index, "write", 0, 0, 0],
         [format!("{}.index.get", PREFIX), get_index, "readonly", 0, 0, 0],
         [format!("{}.index.del", PREFIX), del_index, "write", 0, 0, 0],
-        [format!("{}.index.scan", PREFIX), scan_index, "readonly", 0, 0, 0],
+        [format!("{}.node.add", PREFIX), add_node, "write", 0, 0, 0],
+        [format!("{}.node.get", PREFIX), get_node, "readonly", 0, 0, 0],
+        [format!("{}.node.del", PREFIX), delete_node, "write", 0, 0, 0],
+        [format!("{}.search.kann", PREFIX), search_kann, "readonly", 0, 0, 0],
     ],
 }
 
