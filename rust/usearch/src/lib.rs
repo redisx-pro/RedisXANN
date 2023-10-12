@@ -227,12 +227,8 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     // add node to index
     // todo: need check index cap and size, Manual reserve, maybe wait usearch v3?
-    ctx.log_debug(format!("Adding node: {} to Index: {}", node_name, index_name).as_str());
-    let res = index_redis
-        .index
-        .clone()
-        .unwrap()
-        .add(verctor_id, verctor.as_ref());
+    let idx = index_redis.index.clone().unwrap();
+    let res = idx.add(verctor_id, verctor.as_ref());
     if res.is_err() {
         return Err(RedisError::String(format!(
             "Index: {} add node {} err {}",
@@ -241,6 +237,15 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             res.err().unwrap()
         )));
     }
+    ctx.log_debug(
+        format!(
+            "Add node: {} to Index: {:?} size {}",
+            node_name,
+            index_redis,
+            idx.size()
+        )
+        .as_str(),
+    );
 
     Ok("OK".into())
 }
