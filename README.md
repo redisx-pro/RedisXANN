@@ -1,10 +1,10 @@
 [![licence](https://img.shields.io/github/license/weedge/redisxann.svg)](https://github.com/weedge/redisxann/blob/main/LICENSE)
 
 ## RedisXAnn
-- use rust impl redisxann module  
+- use rust impl redisxann modules  
 
 ## Support ANN algorithm feature
-* [nmslib](https://github.com/nmslib) - [HNSW](https://github.com/nmslib/hnswlib). rust lib: [hnswlib-rs](https://github.com/jean-pierreBoth/hnswlib-rs) unsupport Dynamic update index; use [**hnswcore**](./rust/hnsw/hnswcore/) lib 
+* [nmslib](https://github.com/nmslib) - [HNSW](https://github.com/nmslib/hnswlib). rust lib: [hnswlib-rs](https://github.com/jean-pierreBoth/hnswlib-rs) unsupport Dynamic update index; use [**hnswcore**](./rust/hnsw/hnswcore/) lib, index no save/load
 * [Faiss](https://github.com/facebookresearch/faiss) HNSW with coarse quantization (eg: IndexHNSWFlat), more detail see [faiss wiki](https://github.com/facebookresearch/faiss/wiki).  rust lib: [faiss-rs](https://github.com/Enet4/faiss-rs)
 * [USearch](https://github.com/unum-cloud/usearch) HNSW (**KISS**)
 

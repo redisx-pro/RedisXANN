@@ -11,7 +11,9 @@ use std::{env, fs};
 mod types;
 use types::{IndexOpts, IndexRedis, USEARCH_INDEX_REDIS_TYPE};
 
-use redis_module::{redis_module, Context, NextArg, RedisError, RedisResult, RedisString, Status};
+use redis_module::{
+    redis_module, Context, NextArg, RedisError, RedisResult, RedisString, RedisValue, Status,
+};
 use sonyflake::Sonyflake;
 use usearch::Index;
 
@@ -264,47 +266,100 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             res.err().unwrap()
         )));
     }
-    ctx.log_debug(
-        format!(
-            "Add node: {} to Index: {:?} size {}",
-            node_name,
-            index_redis,
-            idx.size()
-        )
-        .as_str(),
-    );
+    ctx.log_debug(format!("Add node: {} to Index: {:?}", node_name, index_redis,).as_str());
 
     Ok("OK".into())
 }
 
+// get_node
+// cmd: usearch.node.get indexName nodeName
+// cmd eg: usearch.node.get idx0 n1
+// return nodeInfo or error
+// todo: batch get
 fn get_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
-    if args.len() < 2 {
+
+    if args.len() <= 3 {
         return Err(RedisError::WrongArity);
     }
 
-    ctx.log_notice(format!("{:?}", args).as_str());
+    let mut args = args.into_iter().skip(1);
+    let name = format!("{}.{}", PREFIX, args.next_str()?);
+    let node_name = format!("{}.{}", name, args.next_str()?);
+
     Ok("".into())
 }
 
+// delete_node
+// cmd: usearch.node.del indexName nodeName
+// cmd eg: usearch.node.del idx0 n1
+// return 1 or error
+// todo: batch del
 fn delete_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
-    if args.len() < 2 {
+
+    if args.len() <= 3 {
         return Err(RedisError::WrongArity);
     }
+
+    let mut args = args.into_iter().skip(1);
+    let name = format!("{}.{}", PREFIX, args.next_str()?);
+    let node_name = format!("{}.{}", name, args.next_str()?);
 
     ctx.log_notice(format!("{:?}", args).as_str());
     Ok("".into())
 }
 
+// search_kann
+// k-Approximate Nearest Neighbors (kANN) Search
+// cmd: usearch.search.kann indexName topK queryVector
+// cmd eg: usearch.search.kann idx0 6 0.0 0.0 0.0
+// return top K ANN node infos or error
+// todo: add filter
 fn search_kann(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
-    if args.len() < 2 {
+
+    if args.len() <= 3 {
         return Err(RedisError::WrongArity);
     }
 
-    ctx.log_notice(format!("{:?}", args).as_str());
-    Ok("".into())
+    let mut args = args.into_iter().skip(1);
+    let name = format!("{}.{}", PREFIX, args.next_str()?);
+    let k = args.next_u64()? as usize;
+    let data = args
+        .into_iter()
+        .map(|d| d.parse_float().unwrap() as f32)
+        .collect::<Vec<f32>>();
+
+    // get redisType value
+    let index_name = ctx.create_string(name.clone());
+    let key = ctx.open_key(&index_name);
+    let index_redis = key
+        .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
+        .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
+
+    let idx = index_redis.index.clone().unwrap();
+    let res = idx.search(&data, k);
+    if res.is_err() {
+        return Err(RedisError::String(format!(
+            "Index {} search ann err {}",
+            name,
+            res.err().unwrap()
+        )));
+    }
+
+    let mut reply: Vec<RedisValue> = Vec::new();
+    let matches = res.unwrap();
+    let l = matches.keys.len();
+    reply.push(l.into());
+    for i in 0..l {
+        let mut sr = types::SearchResultRedis::default();
+        sr.id = matches.keys[i] as usize;
+        sr.sim = matches.distances[i] as f64;
+        reply.push(sr.into());
+    }
+
+    Ok(reply.into())
 }
 
 #[cfg(not(test))]

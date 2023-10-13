@@ -358,3 +358,27 @@ unsafe extern "C" fn copy_index(
     let value = idx.clone();
     Box::into_raw(Box::new(value)).cast::<c_void>()
 }
+
+#[derive(Default)]
+pub struct SearchResultRedis {
+    pub sim: f64,
+    pub name: String,
+    pub id: usize,
+}
+
+impl From<SearchResultRedis> for RedisValue {
+    fn from(sr: SearchResultRedis) -> Self {
+        let mut reply: Vec<RedisValue> = Vec::new();
+
+        reply.push("similarity".into());
+        reply.push(sr.sim.into());
+
+        reply.push("name".into());
+        reply.push(sr.name.as_str().into());
+
+        reply.push("id".into());
+        reply.push(sr.id.into());
+
+        reply.into()
+    }
+}
