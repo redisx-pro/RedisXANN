@@ -37,7 +37,10 @@ lazy_static! {
         RwLock::new(m)
     };
 
+    // use id generator
     static ref ID_GENER: Sonyflake = Sonyflake::new().unwrap();
+
+    // or use hash funciton: https://clickhouse.com/docs/en/sql-reference/functions/hash-functions
 }
 
 // create_index
