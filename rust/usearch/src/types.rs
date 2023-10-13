@@ -133,13 +133,14 @@ pub struct IndexRedis {
     pub index: Option<Arc<Index>>, // usearch index
     // pub serialization_buffer: Vec<u8>, // usearch index serialization buffer for save/load
     pub serialization_file_path: String, // usearch index serialization file path for save/load
-    pub serialized_length: usize,        // usearch index saved serialized buffer length
-    pub index_size: usize,               // usearch index size
-    pub index_capacity: usize,           // usearch index capacity
+                                         //pub serialized_length: usize,        // usearch index saved serialized buffer length
+                                         //pub index_size: usize,               // usearch index size
+                                         //pub index_capacity: usize,           // usearch index capacity
 }
 
 impl fmt::Debug for IndexRedis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let idx = self.index.as_ref().unwrap();
         write!(
             f,
             "name: {}, \
@@ -162,9 +163,9 @@ impl fmt::Debug for IndexRedis {
             self.index_opts.expansion_add,
             self.index_opts.expansion_search,
             self.serialization_file_path,
-            self.serialized_length,
-            self.index_size,
-            self.index_capacity,
+            idx.serialized_length(),
+            idx.size(),
+            idx.capacity(),
         )
     }
 }
@@ -196,12 +197,14 @@ impl From<IndexRedis> for RedisValue {
 
         reply.push("serialization_file_path".into());
         reply.push(index.serialization_file_path.as_str().into());
+
+        let idx = index.index.unwrap();
         reply.push("serialized_length".into());
-        reply.push(index.serialized_length.into());
+        reply.push(idx.serialized_length().into());
         reply.push("index_size".into());
-        reply.push(index.index_size.into());
-        reply.push("index_capacity".into());
-        reply.push(index.index_capacity.into());
+        reply.push(idx.size().into());
+        reply.push("idx_capacity".into());
+        reply.push(idx.capacity().into());
 
         reply.into()
     }
@@ -311,10 +314,6 @@ unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, encver: c_int) -> 
                     );
                     true
                 });
-
-            index.index_capacity = idx.capacity();
-            index.index_size = idx.size();
-            index.serialized_length = idx.serialized_length();
 
             println!("load Usearch Index {:?}", index);
 

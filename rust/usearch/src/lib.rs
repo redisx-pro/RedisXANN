@@ -20,8 +20,10 @@ static SUFFIX: &str = "idx";
 static MODULE_NAME: &str = "redisxann-usearch";
 static ARG_PATH_DIR_NAME: &str = "serialization_file_path_dir";
 static ARG_REMOVE_SERIALIZED_FILE: &str = "is_remove_serialized_file";
+static USEARCH_INDEX_RESERVE_CAP: usize = 10;
 
 lazy_static! {
+    // note: usearch::Index it is already thread-safe for concurrent additions from different threads but can't run search in parallel with that maybe in the next v3 release
     static ref INDICES: RwLock<HashMap<String, Index>> = RwLock::new(HashMap::new());
 
     // just use init load args, then read it's args for cmd,,
@@ -95,7 +97,7 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             redis_idx.name = name.clone();
             redis_idx.index_opts = opts.clone();
             let idx = usearch::Index::new(&opts.into()).unwrap();
-            let res = idx.reserve(10);
+            let res = idx.reserve(USEARCH_INDEX_RESERVE_CAP);
             if res.is_err() {
                 return Err(RedisError::String(format!(
                     "new Index {} reserve cap err {}",
@@ -103,9 +105,6 @@ fn create_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
                     res.err().unwrap()
                 )));
             }
-            redis_idx.index_capacity = idx.capacity();
-            redis_idx.index_size = idx.size();
-            redis_idx.serialized_length = idx.serialized_length();
             redis_idx.serialization_file_path = MODULE_ARGS_MAP
                 .read()
                 .unwrap()
@@ -226,8 +225,21 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
 
     // add node to index
-    // todo: need check index cap and size, Manual reserve, maybe wait usearch v3?
+    // note: need check index cap and size, Manual reserve. maybe wait usearch v3 to support for multi threads case.
     let idx = index_redis.index.clone().unwrap();
+    // just single thread, for redis cmd main thread to reserve Index capacity + USEARCH_INDEX_RESERVE_CAP
+    if idx.capacity() > idx.capacity() / 2 {
+        let cap = idx.capacity() + USEARCH_INDEX_RESERVE_CAP;
+        let res = idx.reserve(cap);
+        if res.is_err() {
+            return Err(RedisError::String(format!(
+                "Index: {} reserve cap {} err {}",
+                name,
+                cap,
+                res.err().unwrap()
+            )));
+        }
+    }
     let res = idx.add(verctor_id, verctor.as_ref());
     if res.is_err() {
         return Err(RedisError::String(format!(
