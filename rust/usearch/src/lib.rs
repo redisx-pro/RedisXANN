@@ -20,7 +20,9 @@ static SUFFIX: &str = "idx";
 static MODULE_NAME: &str = "redisxann-usearch";
 static ARG_PATH_DIR_NAME: &str = "serialization_file_path_dir";
 static ARG_REMOVE_SERIALIZED_FILE: &str = "is_remove_serialized_file";
+static ARG_USEARCH_INDEX_RESERVE_CAP: &str = "index_reserve_cap";
 static USEARCH_INDEX_RESERVE_CAP: usize = 10;
+static MAX_USEARCH_INDEX_RESERVE_CAP: usize = 100_000;
 
 lazy_static! {
     // note: usearch::Index it is already thread-safe for concurrent additions from different threads but can't run search in parallel with that maybe in the next v3 release
@@ -228,8 +230,21 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     // note: need check index cap and size, Manual reserve. maybe wait usearch v3 to support for multi threads case.
     let idx = index_redis.index.clone().unwrap();
     // just single thread, for redis cmd main thread to reserve Index capacity + USEARCH_INDEX_RESERVE_CAP
-    if idx.capacity() > idx.capacity() / 2 {
-        let cap = idx.capacity() + USEARCH_INDEX_RESERVE_CAP;
+    let curr_cap = idx.capacity();
+    let mut cap = curr_cap + USEARCH_INDEX_RESERVE_CAP;
+    let binding = MODULE_ARGS_MAP.read().unwrap();
+    let incr_cap = binding.get(ARG_USEARCH_INDEX_RESERVE_CAP);
+    if incr_cap.is_some() {
+        let mut incr = incr_cap
+            .unwrap()
+            .parse()
+            .unwrap_or_else(|_| USEARCH_INDEX_RESERVE_CAP);
+        if incr > MAX_USEARCH_INDEX_RESERVE_CAP {
+            incr = MAX_USEARCH_INDEX_RESERVE_CAP;
+        }
+        cap = curr_cap + incr;
+    }
+    if idx.size() >= cap / 2 {
         let res = idx.reserve(cap);
         if res.is_err() {
             return Err(RedisError::String(format!(

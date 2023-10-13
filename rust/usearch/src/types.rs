@@ -258,12 +258,13 @@ unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void
     let path_cstring = CString::new(index.serialization_file_path.as_str()).unwrap();
     raw::save_string(rdb, path_cstring.to_str().unwrap());
 
+    let idx = index.index.as_ref().unwrap();
+    let cap_cstring = CString::new(idx.capacity().to_string().as_str()).unwrap();
+    raw::save_string(rdb, cap_cstring.to_str().unwrap());
+
     // match options Some/None
     if index.index.is_some() {
-        let _ = index
-            .index
-            .as_ref()
-            .unwrap()
+        let _ = idx
             .save(index.serialization_file_path.as_str())
             .is_err_and(|e| {
                 panic!(
@@ -299,24 +300,34 @@ unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, encver: c_int) -> 
                     .unwrap()
                     .to_owned();
 
+            let cap = RedisString::from_ptr(raw::RedisModule_LoadString.unwrap()(rdb))
+                .unwrap()
+                .to_owned();
+
             let idx = index
                 .index
                 .as_ref()
                 .unwrap_or_else(|| panic!("usearch index un init"));
-            let _ = idx
-                .load(index.serialization_file_path.as_str())
-                .is_err_and(|e| {
+            idx.load(index.serialization_file_path.as_str())
+                .unwrap_or_else(|e| {
                     //panic!(
                     println!(
                         "load fail! from file {} err {}",
                         index.serialization_file_path,
                         e.to_string()
-                    );
-                    true
+                    )
                 });
 
-            println!("load Usearch Index {:?}", index);
+            idx.reserve(cap.parse().unwrap()).unwrap_or_else(|e| {
+                println!(
+                    "index {} reserve cap {} err {}",
+                    index.name,
+                    cap,
+                    e.to_string()
+                )
+            });
 
+            println!("load Usearch Index {:?}", index);
             let index: *mut c_void = Box::into_raw(index) as *mut c_void;
             index
         }
