@@ -11,6 +11,7 @@ use usearch::ffi::{IndexOptions, MetricKind, ScalarKind};
 use usearch::Index;
 
 static INDEX_VERSION: i32 = 0;
+static NODE_VERSION: i32 = 0;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum MKind {
@@ -132,10 +133,10 @@ pub struct IndexRedis {
     pub index_opts: IndexOpts,     // usearch index options
     pub index: Option<Arc<Index>>, // usearch index
     // pub serialization_buffer: Vec<u8>, // usearch index serialization buffer for save/load
+    //pub serialized_length: usize,        // usearch index saved serialized buffer length
+    //pub index_size: usize,               // usearch index size
+    //pub index_capacity: usize,           // usearch index capacity
     pub serialization_file_path: String, // usearch index serialization file path for save/load
-                                         //pub serialized_length: usize,        // usearch index saved serialized buffer length
-                                         //pub index_size: usize,               // usearch index size
-                                         //pub index_capacity: usize,           // usearch index capacity
 }
 
 impl fmt::Debug for IndexRedis {
@@ -205,6 +206,8 @@ impl From<IndexRedis> for RedisValue {
         reply.push(idx.size().into());
         reply.push("idx_capacity".into());
         reply.push(idx.capacity().into());
+        reply.push("idx_mem_usage".into());
+        reply.push(idx.memory_usage().into());
 
         reply.into()
     }
@@ -222,7 +225,7 @@ pub static USEARCH_INDEX_REDIS_TYPE: RedisType = RedisType::new(
         free: Some(free_index),
 
         // Currently unused by Redis
-        mem_usage: Some(mem_usage),
+        mem_usage: Some(mem_usage_index),
         digest: None,
 
         // Aux data
@@ -343,7 +346,7 @@ unsafe extern "C" fn free_index(value: *mut c_void) {
     drop(Box::from_raw(value as *mut IndexRedis));
 }
 
-unsafe extern "C" fn mem_usage(value: *const c_void) -> usize {
+unsafe extern "C" fn mem_usage_index(value: *const c_void) -> usize {
     let index = Box::from_raw(value as *mut IndexRedis);
     index.index.as_ref().unwrap().memory_usage()
 }
@@ -366,6 +369,7 @@ pub struct SearchResultRedis {
     pub id: usize,
 }
 
+// SearchResultRedis -> RedisValue
 impl From<SearchResultRedis> for RedisValue {
     fn from(sr: SearchResultRedis) -> Self {
         let mut reply: Vec<RedisValue> = Vec::new();
@@ -378,6 +382,98 @@ impl From<SearchResultRedis> for RedisValue {
 
         reply.push("id".into());
         reply.push(sr.id.into());
+
+        reply.into()
+    }
+}
+
+pub static USEARCH_NODE_REDIS_TYPE: RedisType = RedisType::new(
+    "usearchnd",
+    NODE_VERSION,
+    raw::RedisModuleTypeMethods {
+        version: raw::REDISMODULE_TYPE_METHOD_VERSION as u64,
+        rdb_load: Some(load_node),
+        rdb_save: Some(save_node),
+        aof_rewrite: None,
+        free: Some(free_node),
+
+        // Currently unused by Redis
+        mem_usage: None,
+        digest: None,
+
+        // Aux data
+        aux_load: None,
+        aux_save: None,
+        aux_save2: None,
+        aux_save_triggers: 0,
+
+        copy: Some(copy_node),
+        free_effort: None,
+        unlink: None,
+        defrag: None,
+
+        copy2: None,
+        free_effort2: None,
+        mem_usage2: None,
+        unlink2: None,
+    },
+);
+
+unsafe extern "C" fn save_node(rdb: *mut raw::RedisModuleIO, value: *mut c_void) {
+    let id = unsafe { &*value.cast::<usize>() };
+    raw::save_unsigned(rdb, *id as u64);
+}
+
+unsafe extern "C" fn load_node(rdb: *mut raw::RedisModuleIO, encver: c_int) -> *mut c_void {
+    match encver {
+        0 => {
+            let id = raw::RedisModule_LoadUnsigned.unwrap()(rdb) as usize;
+            let node: *mut c_void = Box::into_raw(Box::new(id)) as *mut c_void;
+            //let index: *mut c_void = Box::into_raw(Box::new(id)) as *mut c_void;
+            node
+        }
+        _ => ptr::null_mut() as *mut c_void,
+    }
+}
+
+unsafe extern "C" fn free_node(value: *mut c_void) {
+    if value.is_null() {
+        // on Redis 6.0 we might get a NULL value here, so we need to handle it.
+        return;
+    }
+    drop(Box::from_raw(value as *mut usize));
+}
+
+//#[allow(unused)]
+unsafe extern "C" fn copy_node(
+    _: *mut raw::RedisModuleString,
+    _: *mut raw::RedisModuleString,
+    value: *const c_void,
+) -> *mut c_void {
+    let idx = unsafe { &*value.cast::<usize>() };
+    let value = idx.clone();
+    Box::into_raw(Box::new(value)).cast::<c_void>()
+}
+
+#[derive(Default)]
+pub struct NodeGetResultRedis {
+    pub name: String,
+    pub data: Vec<f32>,
+}
+
+// NodeGetResultRedis -> RedisValue
+impl From<&NodeGetResultRedis> for RedisValue {
+    fn from(n: &NodeGetResultRedis) -> Self {
+        let mut reply: Vec<RedisValue> = Vec::new();
+
+        reply.push("data".into());
+        reply.push(
+            n.data
+                .iter()
+                .map(|x| *x as f64)
+                .collect::<Vec<f64>>()
+                .into(),
+        );
 
         reply.into()
     }
