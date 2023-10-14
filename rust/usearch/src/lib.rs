@@ -155,7 +155,7 @@ fn get_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok(index_redis.clone().into())
 }
 
-// delete_index
+// del_index
 // cmd: usearch.index.del indexName
 // cmd eg: usearch.index.del idx0
 // return 1 or error
@@ -183,7 +183,18 @@ fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         .get(ARG_REMOVE_SERIALIZED_FILE)
         .is_some();
     if is_remove {
-        fs::remove_file(index_redis.serialization_file_path.to_string())?;
+        // don't return
+        let res = fs::remove_file(index_redis.serialization_file_path.to_string());
+        if res.is_err() {
+            ctx.log_debug(
+                format!(
+                    "path {} remove err {}",
+                    index_redis.serialization_file_path,
+                    res.err().unwrap().to_string()
+                )
+                .as_str(),
+            );
+        }
     }
 
     // delete usearch index

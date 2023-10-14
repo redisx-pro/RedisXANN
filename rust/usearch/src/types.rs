@@ -155,6 +155,7 @@ impl fmt::Debug for IndexRedis {
             serialized_length: {}, \
             index_size: {}, \
             index_capacity: {}, \
+            index_mem_usage: {}, \
             ",
             self.name,
             self.index_opts.dimensions,
@@ -167,6 +168,7 @@ impl fmt::Debug for IndexRedis {
             idx.serialized_length(),
             idx.size(),
             idx.capacity(),
+            idx.memory_usage(),
         )
     }
 }
@@ -204,9 +206,9 @@ impl From<IndexRedis> for RedisValue {
         reply.push(idx.serialized_length().into());
         reply.push("index_size".into());
         reply.push(idx.size().into());
-        reply.push("idx_capacity".into());
+        reply.push("index_capacity".into());
         reply.push(idx.capacity().into());
-        reply.push("idx_mem_usage".into());
+        reply.push("index_mem_usage".into());
         reply.push(idx.memory_usage().into());
 
         reply.into()

@@ -23,7 +23,11 @@ impl Drop for ChildGuard {
     }
 }
 
-pub fn start_redis_server_with_module(module_name: &str, port: u16) -> Result<ChildGuard> {
+pub fn start_redis_server_with_module(
+    module_name: &str,
+    port: u16,
+    other_args: Vec<&str>,
+) -> Result<ChildGuard> {
     let extension = if cfg!(target_os = "macos") {
         "dylib"
     } else {
@@ -49,12 +53,9 @@ pub fn start_redis_server_with_module(module_name: &str, port: u16) -> Result<Ch
 
     let module_path = format!("{}", module_path.display());
 
-    let args = &[
-        "--port",
-        &port.to_string(),
-        "--loadmodule",
-        module_path.as_str(),
-    ];
+    let port_str = port.to_string();
+    let mut args = vec!["--port", &port_str, "--loadmodule", module_path.as_str()];
+    args.extend(other_args);
 
     let redis_server = Command::new("redis-server")
         .args(args)
