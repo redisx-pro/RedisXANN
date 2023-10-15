@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::{env, fs};
@@ -160,7 +161,7 @@ fn get_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 // cmd eg: usearch.index.del idx0
 // return 1 or error
 fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
-    //ctx.auto_memory();
+    ctx.auto_memory();
 
     if args.len() != 2 {
         return Err(RedisError::WrongArity);
@@ -207,6 +208,10 @@ fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         )));
     }
 
+    // clear node map
+    index_redis.node_id_name_map.clear();
+    index_redis.node_name_id_map.clear();
+
     // finally delete redisType value
     key.delete()?;
 
@@ -235,19 +240,15 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     // get index redisType value
     let index_name = ctx.create_string(name.clone());
-    let index_key = ctx.open_key(&index_name);
+    let index_key = ctx.open_key_writable(&index_name);
     let index_redis = index_key
         .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
 
-    // get node redisType value
-    let node = ctx.create_string(node_name.clone());
-    let node_key = ctx.open_key_writable(&node);
-    let node_redis = node_key.get_value::<usize>(&USEARCH_NODE_REDIS_TYPE)?;
-    if node_redis.is_some() {
-        // usearch index.add don't support update
+    // check node name exist
+    if index_redis.node_name_id_map.contains_key(&node_name) {
         return Err(RedisError::String(format!(
-            "Node {} already exists",
+            "Node: {} already exists",
             node_name
         )));
     }
@@ -281,8 +282,8 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             )));
         }
     }
-    let verctor_id = ID_GENER.next_id().unwrap();
-    let res = idx.add(verctor_id, verctor.as_ref());
+    let vector_id = ID_GENER.next_id().unwrap();
+    let res = idx.add(vector_id, verctor.as_ref());
     if res.is_err() {
         return Err(RedisError::String(format!(
             "Index: {} add node {} err {}",
@@ -292,10 +293,21 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         )));
     }
 
-    //set node redisType value
-    ctx.log_debug(format!("Add node: {} to Index: {:?}", node_name, index_redis,).as_str());
-    node_key.set_value::<usize>(&USEARCH_NODE_REDIS_TYPE, verctor_id as usize)?;
+    // add node id<>name map
+    index_redis
+        .node_id_name_map
+        .insert(vector_id as usize, node_name.clone());
+    index_redis
+        .node_name_id_map
+        .insert(node_name.clone(), vector_id as usize);
 
+    ctx.log_debug(
+        format!(
+            "Add node: {} id {} to Index: {:?}",
+            node_name, vector_id, index_redis,
+        )
+        .as_str(),
+    );
     Ok("OK".into())
 }
 
@@ -323,12 +335,14 @@ fn get_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
 
     // get node redisType value
-    let node = ctx.create_string(node_name.clone());
-    let node_key = ctx.open_key(&node);
-    let node_redis = node_key
-        .get_value::<usize>(&USEARCH_NODE_REDIS_TYPE)?
-        .ok_or_else(|| RedisError::String(format!("Node: {} does not exist", node_name)))?;
-    let id = *node_redis as u64;
+    // check node name exist
+    if !index_redis.node_name_id_map.contains_key(&node_name) {
+        return Err(RedisError::String(format!(
+            "Node: {} does not exist",
+            node_name
+        )));
+    }
+    let id = *(index_redis.node_name_id_map.get(&node_name).unwrap()) as u64;
 
     // get node from usearch index
     let idx = index_redis.index.clone().unwrap();
@@ -344,6 +358,8 @@ fn get_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     // reply
     let mut reply: Vec<RedisValue> = Vec::new();
+    reply.push("id".into());
+    reply.push((id as usize).into());
     reply.push("name".into());
     reply.push(node_name.into());
     reply.push("data".into());
@@ -370,22 +386,23 @@ fn delete_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     // get index redisType value
     let index_name = ctx.create_string(name.clone());
-    let index_key = ctx.open_key(&index_name);
+    let index_key = ctx.open_key_writable(&index_name);
     let index_redis = index_key
         .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
 
-    // get node redisType value
-    let node = ctx.create_string(node_name.clone());
-    let node_key = ctx.open_key_writable(&node);
-    let node_redis = node_key
-        .get_value::<usize>(&USEARCH_NODE_REDIS_TYPE)?
-        .ok_or_else(|| RedisError::String(format!("Node: {} does not exist", node_name)))?;
-    let id = *node_redis as u64;
+    // check node name exist
+    if !index_redis.node_name_id_map.contains_key(&node_name) {
+        return Err(RedisError::String(format!(
+            "Node: {} does not exists",
+            node_name
+        )));
+    }
+    let id = *(index_redis.node_name_id_map.get(&node_name).unwrap());
 
     // delete node from usearch index
     let idx = index_redis.index.clone().unwrap();
-    let n = idx.remove(id)?;
+    let n = idx.remove(id as u64)?;
     ctx.log_debug(
         format!(
             "Delete {} node {} id {} from Index: {:?}",
@@ -394,8 +411,9 @@ fn delete_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         .as_str(),
     );
 
-    // delte node redisType value
-    node_key.delete()?;
+    // delte node map
+    index_redis.node_id_name_map.remove(&id);
+    index_redis.node_name_id_map.remove(&node_name);
 
     Ok(n.into())
 }
@@ -423,12 +441,13 @@ fn search_kann(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
     // get redisType value
     let index_name = ctx.create_string(name.clone());
-    let key = ctx.open_key(&index_name);
+    let key = ctx.open_key_writable(&index_name);
     let index_redis = key
         .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
 
     let idx = index_redis.index.clone().unwrap();
+    // note: maybe return removed node, usearch v3 todo
     let res = idx.search(&data, k);
     if res.is_err() {
         return Err(RedisError::String(format!(
@@ -437,14 +456,23 @@ fn search_kann(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
             res.err().unwrap()
         )));
     }
+    ctx.log_debug(format!("{res:?}").as_str());
 
     let mut reply: Vec<RedisValue> = Vec::new();
     let matches = res.unwrap();
     let l = matches.keys.len();
     reply.push(l.into());
     for i in 0..l {
+        // removed node
+        if matches.keys[i] == std::u64::MAX {
+            continue;
+        }
         let mut sr = types::SearchResultRedis::default();
         sr.id = matches.keys[i] as usize;
+        sr.name = match index_redis.node_id_name_map.entry(sr.id) {
+            Entry::Occupied(o) => o.get().to_string(),
+            Entry::Vacant(_) => "".to_string(),
+        };
         sr.sim = matches.distances[i] as f64;
         reply.push(sr.into());
     }
@@ -470,7 +498,7 @@ redis_module! {
     name: MODULE_NAME,
     version: 1,
     allocator: (get_allocator!(), get_allocator!()),
-    data_types: [USEARCH_INDEX_REDIS_TYPE,USEARCH_NODE_REDIS_TYPE],
+    data_types: [USEARCH_INDEX_REDIS_TYPE],
     init: init,
     commands: [
         [format!("{}.index.create", PREFIX), create_index, "write", 0, 0, 0],

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::CString;
 use std::os::raw::{c_int, c_void};
 use std::sync::Arc;
@@ -11,7 +12,6 @@ use usearch::ffi::{IndexOptions, MetricKind, ScalarKind};
 use usearch::Index;
 
 static INDEX_VERSION: i32 = 0;
-static NODE_VERSION: i32 = 0;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum MKind {
@@ -129,9 +129,11 @@ impl From<IndexOpts> for IndexOptions {
 
 #[derive(Default, Clone)]
 pub struct IndexRedis {
-    pub name: String,              // index name
-    pub index_opts: IndexOpts,     // usearch index options
-    pub index: Option<Arc<Index>>, // usearch index
+    pub name: String,                             // index name
+    pub index_opts: IndexOpts,                    // usearch index options
+    pub node_id_name_map: HashMap<usize, String>, // usearch index node id/name map when usearch.node.add indexName nodeName
+    pub node_name_id_map: HashMap<String, usize>, // usearch index node name/id map when usearch.node.add indexName nodeName
+    pub index: Option<Arc<Index>>,                // usearch index
     // pub serialization_buffer: Vec<u8>, // usearch index serialization buffer for save/load
     //pub serialized_length: usize,        // usearch index saved serialized buffer length
     //pub index_size: usize,               // usearch index size
@@ -260,6 +262,14 @@ unsafe extern "C" fn save_index(rdb: *mut raw::RedisModuleIO, value: *mut c_void
     let opts_cjson = CString::new(opts_serialized_json).unwrap();
     raw::save_string(rdb, opts_cjson.to_str().unwrap());
 
+    let id_name_serialized_json = serde_json::to_string(&index.node_id_name_map).unwrap();
+    let id_name_cjson = CString::new(id_name_serialized_json).unwrap();
+    raw::save_string(rdb, id_name_cjson.to_str().unwrap());
+
+    let name_id_serialized_json = serde_json::to_string(&index.node_name_id_map).unwrap();
+    let name_id_cjson = CString::new(name_id_serialized_json).unwrap();
+    raw::save_string(rdb, name_id_cjson.to_str().unwrap());
+
     let path_cstring = CString::new(index.serialization_file_path.as_str()).unwrap();
     raw::save_string(rdb, path_cstring.to_str().unwrap());
 
@@ -295,6 +305,20 @@ unsafe extern "C" fn load_index(rdb: *mut raw::RedisModuleIO, encver: c_int) -> 
                 .unwrap()
                 .to_owned();
             index.index_opts = serde_json::from_str(&index_opts_json).unwrap();
+
+            let id_name_json = RedisString::from_ptr(raw::RedisModule_LoadString.unwrap()(rdb))
+                .unwrap()
+                .to_owned();
+            if id_name_json.len() > 0 {
+                index.node_id_name_map = serde_json::from_str(&id_name_json).unwrap();
+            }
+
+            let name_id_json = RedisString::from_ptr(raw::RedisModule_LoadString.unwrap()(rdb))
+                .unwrap()
+                .to_owned();
+            if name_id_json.len() > 0 {
+                index.node_name_id_map = serde_json::from_str(&name_id_json).unwrap();
+            }
 
             index.index = Some(Arc::new(
                 Index::new(&index.index_opts.clone().into()).unwrap(),
@@ -387,74 +411,6 @@ impl From<SearchResultRedis> for RedisValue {
 
         reply.into()
     }
-}
-
-pub static USEARCH_NODE_REDIS_TYPE: RedisType = RedisType::new(
-    "usearchnd",
-    NODE_VERSION,
-    raw::RedisModuleTypeMethods {
-        version: raw::REDISMODULE_TYPE_METHOD_VERSION as u64,
-        rdb_load: Some(load_node),
-        rdb_save: Some(save_node),
-        aof_rewrite: None,
-        free: Some(free_node),
-
-        // Currently unused by Redis
-        mem_usage: None,
-        digest: None,
-
-        // Aux data
-        aux_load: None,
-        aux_save: None,
-        aux_save2: None,
-        aux_save_triggers: 0,
-
-        copy: Some(copy_node),
-        free_effort: None,
-        unlink: None,
-        defrag: None,
-
-        copy2: None,
-        free_effort2: None,
-        mem_usage2: None,
-        unlink2: None,
-    },
-);
-
-unsafe extern "C" fn save_node(rdb: *mut raw::RedisModuleIO, value: *mut c_void) {
-    let id = unsafe { &*value.cast::<usize>() };
-    raw::save_unsigned(rdb, *id as u64);
-}
-
-unsafe extern "C" fn load_node(rdb: *mut raw::RedisModuleIO, encver: c_int) -> *mut c_void {
-    match encver {
-        0 => {
-            let id = raw::RedisModule_LoadUnsigned.unwrap()(rdb) as usize;
-            let node: *mut c_void = Box::into_raw(Box::new(id)) as *mut c_void;
-            //let index: *mut c_void = Box::into_raw(Box::new(id)) as *mut c_void;
-            node
-        }
-        _ => ptr::null_mut() as *mut c_void,
-    }
-}
-
-unsafe extern "C" fn free_node(value: *mut c_void) {
-    if value.is_null() {
-        // on Redis 6.0 we might get a NULL value here, so we need to handle it.
-        return;
-    }
-    drop(Box::from_raw(value as *mut usize));
-}
-
-//#[allow(unused)]
-unsafe extern "C" fn copy_node(
-    _: *mut raw::RedisModuleString,
-    _: *mut raw::RedisModuleString,
-    value: *const c_void,
-) -> *mut c_void {
-    let idx = unsafe { &*value.cast::<usize>() };
-    let value = idx.clone();
-    Box::into_raw(Box::new(value)).cast::<c_void>()
 }
 
 #[derive(Default)]
