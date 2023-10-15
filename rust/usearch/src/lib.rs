@@ -461,7 +461,6 @@ fn search_kann(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     let mut reply: Vec<RedisValue> = Vec::new();
     let matches = res.unwrap();
     let l = matches.keys.len();
-    reply.push(l.into());
     for i in 0..l {
         // removed node
         if matches.keys[i] == std::u64::MAX {
@@ -477,7 +476,11 @@ fn search_kann(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         reply.push(sr.into());
     }
 
-    Ok(reply.into())
+    let mut ok_reply: Vec<RedisValue> = Vec::new();
+    ok_reply.push(reply.len().into());
+    ok_reply.extend(reply);
+
+    Ok(ok_reply.into())
 }
 
 #[cfg(not(test))]

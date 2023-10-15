@@ -66,7 +66,7 @@ exclude = [".gitignore", ".github/**"]
 repository = "https://github.com/weedge/redisxann"
 
 [profile.release]
-debug = 2
+debug = 0
 #opt-level = "z"     # Optimize for size.
 #lto = true          # Enable Link Time Optimization
 #codegen-units = 1   # Reduce number of codegen units to increase optimizations.
