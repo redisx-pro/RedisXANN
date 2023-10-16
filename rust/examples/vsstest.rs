@@ -5,7 +5,9 @@ use faiss::{index_factory, IdMap, Idx, Index, MetricType};
 use hnsw_rs::prelude::*;
 use rand::distributions::Uniform;
 use rand::prelude::*;
+use redis_module::{raw::Version, RedisValue};
 use redis_module::{redis_module, Context, RedisError, RedisResult, RedisString};
+use std::os::raw::c_int;
 use std::time::{Duration, SystemTime};
 use usearch::ffi::{IndexOptions, MetricKind, ScalarKind};
 use usearch::new_index;
@@ -249,6 +251,70 @@ fn usearch_test(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok("ok".into())
 }
 
+fn version_from_info(ctx: &Context, info: RedisValue) -> Result<Version, RedisError> {
+    match info {
+        RedisValue::SimpleString(info_str) => {
+            let s = info_str.replace("\r\n", " ");
+            ctx.log_debug(format!("info: {:?} \n replace {:?}", info_str, s).as_str());
+            let s = "# Server redis_version:7.2.1 redis_git_sha1:00000000 redis_git_dirty:0 redis_build_id:7b8617dd94058f85 redis_mode:standalone os:Darwin 22.6.0 x86_64 arch_bits:64 monotonic_clock:POSIX clock_gettime multiplexing_api:kqueue atomicvar_api:c11-builtin gcc_version:4.2.1 process_id:72033 process_super".to_string();
+
+            version_from_info_string(s)
+        }
+        _ => Err(RedisError::Str("Error getting redis_version")),
+    }
+}
+
+fn version_from_info_string(info_str: String) -> Result<Version, RedisError> {
+    let regex = regex::Regex::new(
+        r"(?m)\bredis_version:(?<major>[0-9]+)\.(?<minor>[0-9]+)\.(?<patch>[0-9]+)\b",
+    );
+
+    if regex.is_ok() {
+        let regex = regex.unwrap();
+        let mut it = regex.captures_iter(info_str.as_str());
+        let res = it.next();
+        if res.is_none() {
+            return Err(RedisError::Str("Error getting redis_version"));
+        }
+        let caps = res.unwrap();
+        return Ok(Version {
+            major: caps["major"].parse::<c_int>().unwrap(),
+            minor: caps["minor"].parse::<c_int>().unwrap(),
+            patch: caps["patch"].parse::<c_int>().unwrap(),
+        });
+    }
+    Err(RedisError::Str("Error getting redis_version"))
+}
+
+fn test_redis_info_ver(_: &Context, _: Vec<RedisString>) -> RedisResult {
+    let s = "# Server redis_version:7.2.1 redis_git_sha1:00000000 redis_git_dirty:0 redis_build_id:7b8617dd94058f85 redis_mode:standalone os:Darwin 22.6.0 x86_64 arch_bits:64 monotonic_clock:POSIX clock_gettime multiplexing_api:kqueue atomicvar_api:c11-builtin gcc_version:4.2.1 process_id:72033 process_super".to_string();
+    let ver_str: Vec<&str> = s.split(|c| c == ' ').collect();
+    let mut s = "";
+    for item in ver_str.iter() {
+        if item.contains("redis_version:") {
+            s = item;
+            break;
+        }
+    }
+    //println!("{s:?}");
+    //let s = ver_str.as_slice()[2];
+    //let s = "# Server redis_version:7.2.1".to_string();
+    let ver = version_from_info_string(s.to_string())?;
+    let response: Vec<i64> = vec![ver.major.into(), ver.minor.into(), ver.patch.into()];
+
+    return Ok(response.into());
+}
+
+fn test_redis_info_version(ctx: &Context, _: Vec<RedisString>) -> RedisResult {
+    if let Ok(info) = ctx.call("info", &["server"]) {
+        let ver = version_from_info(ctx, info)?;
+        let response: Vec<i64> = vec![ver.major.into(), ver.minor.into(), ver.patch.into()];
+
+        return Ok(response.into());
+    }
+    Err(RedisError::Str("Error calling \"info server\""))
+}
+
 redis_module! {
     name: "vsstest",
     version: 1,
@@ -259,5 +325,7 @@ redis_module! {
         ["faiss.flat.test", faiss_flat_test, "", 0, 0, 0],
         ["faiss.hnsw.test", faiss_hnsw_test, "", 0, 0, 0],
         ["usearch.test", usearch_test, "", 0, 0, 0],
+        ["version.test", test_redis_info_ver, "", 0, 0, 0],
+        ["version_bad.test", test_redis_info_version, "", 0, 0, 0],
     ],
 }
