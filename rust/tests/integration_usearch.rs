@@ -12,6 +12,7 @@ mod utils;
 #[test]
 fn test_redisxann_usearch() -> Result<()> {
     // load module
+    let select_db = 0;
     let curr_dir = env::current_dir().unwrap().to_string_lossy().to_string();
     let port: u16 = 6479;
     let _guards: Vec<utils::ChildGuard> = vec![start_redis_server_with_module(
@@ -57,7 +58,7 @@ fn test_redisxann_usearch() -> Result<()> {
 
     // test get index
     let eq_name = format!("usearch.{}", test_index_name);
-    let eq_path = format!("{}/{}.idx", curr_dir, eq_name);
+    let eq_path = format!("{}/{}.{}.idx", curr_dir, select_db, eq_name);
     let eq_vec = vec![
         Value::Data("name".into()),
         Value::Data(eq_name.into()),
