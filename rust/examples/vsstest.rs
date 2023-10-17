@@ -315,10 +315,24 @@ fn test_redis_info_version(ctx: &Context, _: Vec<RedisString>) -> RedisResult {
     Err(RedisError::Str("Error calling \"info server\""))
 }
 
+#[cfg(not(test))]
+macro_rules! get_allocator {
+    () => {
+        redis_module::alloc::RedisAlloc
+    };
+}
+
+#[cfg(test)]
+macro_rules! get_allocator {
+    () => {
+        std::alloc::System
+    };
+}
+
 redis_module! {
     name: "vsstest",
     version: 1,
-    allocator: (redis_module::alloc::RedisAlloc, redis_module::alloc::RedisAlloc),
+    allocator: (get_allocator!(), get_allocator!()),
     data_types: [],
     commands: [
         ["hnswlib.test", hnswlib_test, "", 0, 0, 0],
