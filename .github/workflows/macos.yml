@@ -12,9 +12,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Deps
+      - name: clone and make redis
+        run: |
+          git clone https://github.com/redis/redis
+          cd redis
+          git checkout 7.0
+          make REDIS_CFLAGS='-Werror' BUILD_TLS=yes && make install
+          which redis-server && redis-server --version
+
+      - name: deps
         run: git submodule update --init --recursive
-      - name: Build
+
+      - name: build
         run: |
           cargo build --workspace --verbose \
+            --exclude redisxann-faiss
+
+      - name: test
+        run: |
+          cargo test --tests --workspace --verbose \
             --exclude redisxann-faiss
