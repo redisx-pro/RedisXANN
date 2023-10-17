@@ -20,7 +20,7 @@ jobs:
           copyback: false
           prepare: pkg install -y bash curl lang/rust devel/llvm-devel
           run: |
-            git submodule init && git submodule update
+            git submodule update --init --recursive
             cargo build --all --all-targets --verbose 
             curl https://sh.rustup.rs -sSf > rustup.sh
             sh rustup.sh -y
