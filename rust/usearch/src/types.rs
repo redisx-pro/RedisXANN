@@ -42,8 +42,10 @@ impl MKind {
 impl From<String> for MKind {
     fn from(opts: String) -> Self {
         match opts.as_str() {
-            "f64" => Self::IP,
+            "ip" => Self::IP,
             "l2sq" => Self::L2sq,
+            "euclidean" => Self::L2sq,
+            "l2" => Self::L2sq,
             "cos" => Self::Cos,
             "pearson" => Self::Pearson,
             "haversine," => Self::Haversine,
