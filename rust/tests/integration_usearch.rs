@@ -143,7 +143,6 @@ fn test_redisxann_usearch() -> Result<()> {
         from_redis_value::<usize>(res.get("index_mem_usage").unwrap()).unwrap(),
         0
     );
-    return Ok(());
 
     // test add index node
     let test_node_name = "n1";
