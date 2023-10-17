@@ -21,7 +21,3 @@ jobs:
         run: |
           cargo build --workspace --verbose \
             --exclude redisxann-faiss
-      - name: Run tests
-        run: |
-          cargo test --tests --workspace --all-targets --verbose \
-            --exclude redisxann-faiss

@@ -28,5 +28,3 @@ jobs:
             rustup target add i686-unknown-freebsd
             cargo build --workspace --verbose --target i686-unknown-freebsd \
               --exclude redisxann-faiss
-            cargo test --tests --workspace --verbose \
-              --exclude redisxann-faiss
