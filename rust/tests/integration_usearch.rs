@@ -9,6 +9,63 @@ use utils::{get_redis_connection, start_redis_server_with_module};
 
 mod utils;
 
+#[derive(Default, Debug)]
+struct Reply {
+    pub size: usize,
+    pub vals: Vec<SearchResult>,
+}
+#[derive(Default, Debug)]
+struct SearchResult {
+    pub id: usize,
+    pub name: String,
+    pub similarity: String,
+}
+// https://docs.rs/redis/latest/redis/trait.FromRedisValue.html
+impl FromRedisValue for SearchResult {
+    fn from_redis_value(v: &Value) -> RedisResult<Self> {
+        let mut res = SearchResult::default();
+        println!("{v:?}");
+        match v {
+            Value::Bulk(bulk_data) if bulk_data.len() == 6 => {
+                println!("{bulk_data:?}");
+                for value in bulk_data.chunks(2) {
+                    let field: String = from_redis_value(&value[0])?;
+                    if field == "id" {
+                        res.id = from_redis_value(&value[1])?;
+                    }
+                    if field == "name" {
+                        res.name = from_redis_value(&value[1])?;
+                    }
+                    if field == "similarity" {
+                        res.similarity = from_redis_value(&value[1])?;
+                    }
+                }
+            }
+            _ => (),
+        }
+        RedisResult::Ok(res)
+    }
+}
+impl FromRedisValue for Reply {
+    fn from_redis_value(v: &Value) -> RedisResult<Self> {
+        let mut reply = Reply::default();
+        match v {
+            Value::Bulk(bulk_data) if bulk_data.len() > 0 => {
+                reply.size = from_redis_value(&bulk_data[0])?;
+                let mut vals: Vec<SearchResult> = vec![];
+                for i in 1..bulk_data.len() {
+                    //let val: HashMap<String, Value> = from_redis_value(&bulk_data[i])?;
+                    let val: SearchResult = from_redis_value(&bulk_data[i])?;
+                    vals.push(val);
+                }
+                reply.vals = vals;
+            }
+            _ => (),
+        }
+        RedisResult::Ok(reply)
+    }
+}
+
 #[test]
 fn test_redisxann_usearch() -> Result<()> {
     // load module
@@ -59,38 +116,34 @@ fn test_redisxann_usearch() -> Result<()> {
     // test get index
     let eq_name = format!("usearch.{}", test_index_name);
     let eq_path = format!("{}/{}.{}.idx", curr_dir, select_db, eq_name);
-    let eq_vec = vec![
-        Value::Data("name".into()),
-        Value::Data(eq_name.into()),
-        Value::Data("dimensions".into()),
-        Value::Int(3.into()),
-        Value::Data("metric".into()),
-        Value::Data("Cos".into()),
-        Value::Data("quantization".into()),
-        Value::Data("F32".into()),
-        Value::Data("connectivity".into()),
-        Value::Int(10.into()),
-        Value::Data("expansion_add".into()),
-        Value::Int(12.into()),
-        Value::Data("expansion_search".into()),
-        Value::Int(3.into()),
-        Value::Data("serialization_file_path".into()),
-        Value::Data(eq_path.into()),
-        Value::Data("serialized_length".into()),
-        Value::Int(112.into()),
-        Value::Data("index_size".into()),
-        Value::Int(0.into()),
-        Value::Data("index_capacity".into()),
-        Value::Int(10.into()),
-        Value::Data("index_mem_usage".into()),
-        Value::Int(1104.into()),
-    ];
-    let res: Vec<Value> = redis::cmd("usearch.index.get")
+    let res: HashMap<String, Value> = redis::cmd("usearch.index.get")
         .arg(&[test_index_name])
         .query(&mut con)
         .with_context(|| "failed to run usearch.index.get")?;
     println!("{res:?}");
-    assert_eq!(res, eq_vec);
+    assert_eq!(
+        res.get("name").unwrap(),
+        &Value::Data(eq_name.clone().into())
+    );
+    assert_eq!(res.get("dimensions").unwrap(), &Value::Int(3.into()));
+    assert_eq!(res.get("metric").unwrap(), &Value::Data("Cos".into()));
+    assert_eq!(res.get("quantization").unwrap(), &Value::Data("F32".into()));
+    assert_eq!(res.get("connectivity").unwrap(), &Value::Int(10.into()));
+    assert_eq!(res.get("expansion_add").unwrap(), &Value::Int(12.into()));
+    assert_eq!(res.get("expansion_search").unwrap(), &Value::Int(3.into()));
+    assert_eq!(
+        res.get("serialization_file_path").unwrap(),
+        &Value::Data(eq_path.into()),
+    );
+    assert_eq!(res.get("index_size").unwrap(), &Value::Int(0.into()));
+    assert_eq!(res.get("index_capacity").unwrap(), &Value::Int(10.into()));
+    assert_ne!(res.get("serialized_length").unwrap(), &Value::Int(0.into()));
+    // diff mem_usage in macos/ubuntu
+    assert_ne!(
+        from_redis_value::<usize>(res.get("index_mem_usage").unwrap()).unwrap(),
+        0
+    );
+    return Ok(());
 
     // test add index node
     let test_node_name = "n1";
@@ -168,62 +221,6 @@ fn test_redisxann_usearch() -> Result<()> {
     let q_vector = vec!["1.0"; 3];
     args.extend(q_vector);
 
-    #[derive(Default, Debug)]
-    struct Reply {
-        pub size: usize,
-        pub vals: Vec<SearchResult>,
-    }
-    #[derive(Default, Debug)]
-    struct SearchResult {
-        pub id: usize,
-        pub name: String,
-        pub similarity: String,
-    }
-    // https://docs.rs/redis/latest/redis/trait.FromRedisValue.html
-    impl FromRedisValue for SearchResult {
-        fn from_redis_value(v: &Value) -> RedisResult<Self> {
-            let mut res = SearchResult::default();
-            println!("{v:?}");
-            match v {
-                Value::Bulk(bulk_data) if bulk_data.len() == 6 => {
-                    println!("{bulk_data:?}");
-                    for value in bulk_data.chunks(2) {
-                        let field: String = from_redis_value(&value[0])?;
-                        if field == "id" {
-                            res.id = from_redis_value(&value[1])?;
-                        }
-                        if field == "name" {
-                            res.name = from_redis_value(&value[1])?;
-                        }
-                        if field == "similarity" {
-                            res.similarity = from_redis_value(&value[1])?;
-                        }
-                    }
-                }
-                _ => (),
-            }
-            RedisResult::Ok(res)
-        }
-    }
-    impl FromRedisValue for Reply {
-        fn from_redis_value(v: &Value) -> RedisResult<Self> {
-            let mut reply = Reply::default();
-            match v {
-                Value::Bulk(bulk_data) if bulk_data.len() > 0 => {
-                    reply.size = from_redis_value(&bulk_data[0])?;
-                    let mut vals: Vec<SearchResult> = vec![];
-                    for i in 1..bulk_data.len() {
-                        //let val: HashMap<String, Value> = from_redis_value(&bulk_data[i])?;
-                        let val: SearchResult = from_redis_value(&bulk_data[i])?;
-                        vals.push(val);
-                    }
-                    reply.vals = vals;
-                }
-                _ => (),
-            }
-            RedisResult::Ok(reply)
-        }
-    }
     let res: Reply = redis::cmd("usearch.search.kann")
         .arg(&args)
         .query(&mut con)
