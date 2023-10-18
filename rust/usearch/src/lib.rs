@@ -221,7 +221,7 @@ fn del_index(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
 // add_node
 // cmd: usearch.node.add indexName nodeName dataVector
-// cmd eg: usearch.node.add idx0 n1 0.6 0.1 0.1
+// cmd eg: usearch.node.add idx0 n1 0.6,0.1,0.1
 // return "OK" or error
 fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
@@ -233,11 +233,6 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     let mut args = args.into_iter().skip(1);
     let name = format!("{}.{}", PREFIX, args.next_str()?);
     let node_name = format!("{}.{}", name, args.next_str()?);
-
-    let vector = args
-        .into_iter()
-        .map(|d| d.parse_float().unwrap() as f32)
-        .collect::<Vec<f32>>();
 
     // get index redisType value
     let index_name = ctx.create_string(name.clone());
@@ -254,9 +249,20 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
         )));
     }
 
+    let idx = index_redis.index.clone().unwrap();
+    let vector_str = args.next_string()?;
+    let vector_str: Vec<&str> = vector_str.split(",").collect();
+    if vector_str.len() != idx.dimensions() {
+        return Err(RedisError::WrongArity);
+    }
+    let mut vector: Vec<f32> = Vec::with_capacity(idx.dimensions());
+    for item in vector_str.iter() {
+        let data = item.parse::<f32>()?;
+        vector.push(data);
+    }
+
     // add node to index
     // note: need check index cap and size, Manual reserve. maybe wait usearch v3 to support for multi threads case.
-    let idx = index_redis.index.clone().unwrap();
     // just single thread, for redis cmd main thread to reserve Index capacity + USEARCH_INDEX_RESERVE_CAP
     let curr_cap = idx.capacity();
     let mut cap = curr_cap + USEARCH_INDEX_RESERVE_CAP;
@@ -314,7 +320,7 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 
 // add_vector
 // cmd: usearch.node.add_id indexName vectorId dataVector
-// cmd eg: usearch.node.add_id idx0 123 0.6 0.1 0.1
+// cmd eg: usearch.node.add_id idx0 123 0.6,0.1,0.1
 // return "OK" or error
 fn add_vector(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     ctx.auto_memory();
@@ -327,21 +333,27 @@ fn add_vector(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     let name = format!("{}.{}", PREFIX, args.next_str()?);
     let vector_id = args.next_u64()?;
 
-    let vector = args
-        .into_iter()
-        .map(|d| d.parse_float().unwrap() as f32)
-        .collect::<Vec<f32>>();
-
     // get index redisType value
     let index_name = ctx.create_string(name.clone());
     let index_key = ctx.open_key_writable(&index_name);
     let index_redis = index_key
         .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
+    let idx = index_redis.index.clone().unwrap();
+
+    let vector_str = args.next_string()?;
+    let vector_str: Vec<&str> = vector_str.split(",").collect();
+    if vector_str.len() != idx.dimensions() {
+        return Err(RedisError::WrongArity);
+    }
+    let mut vector: Vec<f32> = Vec::with_capacity(idx.dimensions());
+    for item in vector_str.iter() {
+        let data = item.parse::<f32>()?;
+        vector.push(data);
+    }
 
     // add node to index
     // note: need check index cap and size, Manual reserve. maybe wait usearch v3 to support for multi threads case.
-    let idx = index_redis.index.clone().unwrap();
     // just single thread, for redis cmd main thread to reserve Index capacity + USEARCH_INDEX_RESERVE_CAP
     let curr_cap = idx.capacity();
     let mut cap = curr_cap + USEARCH_INDEX_RESERVE_CAP;
@@ -576,7 +588,7 @@ fn delete_vector(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 // search_kann
 // k-Approximate Nearest Neighbors (kANN) Search
 // cmd: usearch.search.kann indexName topK queryVector [filter_string] [param_key param_value]
-// cmd eg: usearch.search.kann idx0 6 0.0 0.0 0.0 "" ef_search 10
+// cmd eg: usearch.search.kann idx0 6 0.0,0.0,0.0 "" ef_search 10
 // return top K ANN node infos or error
 // todo: add filter
 fn search_kann(ctx: &Context, vec_arg: Vec<RedisString>) -> RedisResult {
@@ -597,47 +609,38 @@ fn search_kann(ctx: &Context, vec_arg: Vec<RedisString>) -> RedisResult {
     let index_redis = key
         .get_value::<IndexRedis>(&USEARCH_INDEX_REDIS_TYPE)?
         .ok_or_else(|| RedisError::String(format!("Index: {} does not exist", name)))?;
+    let idx = index_redis.index.clone().unwrap();
 
-    let mut data: Vec<f32> = Vec::with_capacity(index_redis.index_opts.dimensions);
-    let mut i = 0;
-    for item in args.clone().into_iter() {
-        if i == index_redis.index_opts.dimensions {
-            break;
-        }
-        data.push(item.parse_float()? as f32);
-        i += 1;
+    let vector_str = args.next_string()?;
+    let vector_str: Vec<&str> = vector_str.split(",").collect();
+    if vector_str.len() != idx.dimensions() {
+        return Err(RedisError::WrongArity);
+    }
+    let mut data: Vec<f32> = Vec::with_capacity(idx.dimensions());
+    for item in vector_str.iter() {
+        let q = item.parse::<f32>()?;
+        data.push(q);
     }
 
-    let idx = index_redis.index.clone().unwrap();
     // fliter string
-    if len - 3 - index_redis.index_opts.dimensions > 0 {
-        let filter = args
-            .clone()
-            .skip(index_redis.index_opts.dimensions)
-            .next_string()?;
+    if len > 4 {
+        let filter = args.next_string()?;
         ctx.log_debug(format!("set search filter: {filter:?}").as_str());
     }
 
     // search params
-    let search_params_len = len as i32 - 4 - index_redis.index_opts.dimensions as i32;
-    if search_params_len > 0 {
-        if search_params_len % 2 != 0 {
-            ctx.log_debug(format!("search_params_len: {search_params_len:?}%%2 != 0").as_str());
+    if len > 5 {
+        if (len - 5) % 2 != 0 {
+            ctx.log_debug(format!("search_params_len: {:?}%%2 != 0", len - 5).as_str());
             return Err(RedisError::WrongArity);
         }
-        let ef_search_str = args
-            .clone()
-            .skip(index_redis.index_opts.dimensions + 1)
-            .next_string()?;
+        let ef_search_str = args.next_string()?;
         if ef_search_str.to_lowercase() != "ef_search" {
             ctx.log_debug(format!("need ef_search params but {ef_search_str:?}").as_str());
             return Err(RedisError::WrongArity);
         }
 
-        let ef_search = args
-            .clone()
-            .skip(index_redis.index_opts.dimensions + 2)
-            .next_u64()? as usize;
+        let ef_search = args.next_u64()? as usize;
         idx.change_expansion_search(ef_search)?;
         ctx.log_debug(format!("set search params ef_search: {ef_search:?}").as_str());
     }

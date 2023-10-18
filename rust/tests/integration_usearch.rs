@@ -147,8 +147,9 @@ fn test_redisxann_usearch() -> Result<()> {
     // test add index node
     let test_node_name = "n1";
     let mut args = vec![test_index_name, test_node_name];
-    let test_node_vector = vec!["1.0"; 3];
-    args.extend(test_node_vector);
+    let test_node_vector = vec!["1.0"; 3].join(",");
+    args.push(test_node_vector.as_str());
+    println!("{:?}", args);
     let res: String = redis::cmd("usearch.node.add")
         .arg(&args)
         .query(&mut con)
@@ -192,8 +193,8 @@ fn test_redisxann_usearch() -> Result<()> {
 
     // test search kann
     let mut args = vec![test_index_name, "10"];
-    let q_vector = vec!["1.0"; 3];
-    args.extend(q_vector);
+    let q_vector = vec!["1.0"; 3].join(",");
+    args.push(q_vector.as_str());
     let res: Vec<Value> = redis::cmd("usearch.search.kann")
         .arg(&args)
         .query(&mut con)
@@ -205,8 +206,8 @@ fn test_redisxann_usearch() -> Result<()> {
     for i in 0..100 {
         let tt_node_name = format!("n{}", i);
         let mut args = vec![test_index_name, tt_node_name.as_str()];
-        let test_node_vector = vec!["1.0"; 3];
-        args.extend(test_node_vector);
+        let test_node_vector = vec!["1.0"; 3].join(",");
+        args.push(test_node_vector.as_str());
         let res: String = redis::cmd("usearch.node.add")
             .arg(&args)
             .query(&mut con)
@@ -217,9 +218,8 @@ fn test_redisxann_usearch() -> Result<()> {
     let k = 10;
     let binding = k.to_string();
     let mut args = vec![test_index_name, binding.as_str()];
-    let q_vector = vec!["1.0"; 3];
-    args.extend(q_vector);
-
+    let q_vector = vec!["1.0"; 3].join(",");
+    args.push(q_vector.as_str());
     let res: Reply = redis::cmd("usearch.search.kann")
         .arg(&args)
         .query(&mut con)
