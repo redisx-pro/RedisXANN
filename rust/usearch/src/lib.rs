@@ -255,9 +255,9 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     if vector_str.len() != idx.dimensions() {
         return Err(RedisError::WrongArity);
     }
-    let mut vector: Vec<f32> = Vec::with_capacity(idx.dimensions());
+    let mut vector: Vec<f64> = Vec::with_capacity(idx.dimensions());
     for item in vector_str.iter() {
-        let data = item.parse::<f32>()?;
+        let data = item.parse::<f64>()?;
         vector.push(data);
     }
 
@@ -288,6 +288,7 @@ fn add_node(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
                 res.err().unwrap()
             )));
         }
+        ctx.log_debug(format!("Index: {} reserve cap {} ok!", name, cap).as_str());
     }
     let vector_id = ID_GENER.next_id().unwrap();
     let res = idx.add(vector_id, vector.as_ref());
@@ -346,9 +347,9 @@ fn add_vector(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     if vector_str.len() != idx.dimensions() {
         return Err(RedisError::WrongArity);
     }
-    let mut vector: Vec<f32> = Vec::with_capacity(idx.dimensions());
+    let mut vector: Vec<f64> = Vec::with_capacity(idx.dimensions());
     for item in vector_str.iter() {
-        let data = item.parse::<f32>()?;
+        let data = item.parse::<f64>()?;
         vector.push(data);
     }
 
@@ -616,9 +617,9 @@ fn search_kann(ctx: &Context, vec_arg: Vec<RedisString>) -> RedisResult {
     if vector_str.len() != idx.dimensions() {
         return Err(RedisError::WrongArity);
     }
-    let mut data: Vec<f32> = Vec::with_capacity(idx.dimensions());
+    let mut data: Vec<f64> = Vec::with_capacity(idx.dimensions());
     for item in vector_str.iter() {
-        let q = item.parse::<f32>()?;
+        let q = item.parse::<f64>()?;
         data.push(q);
     }
 

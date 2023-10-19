@@ -203,7 +203,8 @@ fn test_redisxann_usearch() -> Result<()> {
     assert_eq!(res[0], Value::Int(0));
 
     // test add many index nodes to search
-    for i in 0..100 {
+    let n = 100;
+    for i in 0..n {
         let tt_node_name = format!("n{}", i);
         let mut args = vec![test_index_name, tt_node_name.as_str()];
         let test_node_vector = vec!["1.0"; 3].join(",");
@@ -214,6 +215,16 @@ fn test_redisxann_usearch() -> Result<()> {
             .with_context(|| format!("{}:{} failed to run usearch.node.add", file!(), line!()))?;
         assert_eq!(res.to_lowercase(), "ok".to_string());
     }
+    // test get index
+    let res: HashMap<String, Value> = redis::cmd("usearch.index.get")
+        .arg(&[test_index_name])
+        .query(&mut con)
+        .with_context(|| "failed to run usearch.index.get")?;
+    println!("{res:?}");
+    assert_eq!(
+        from_redis_value::<usize>(res.get("index_size").unwrap()).unwrap(),
+        n
+    );
     // test search kann
     let k = 10;
     let binding = k.to_string();
