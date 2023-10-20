@@ -19,7 +19,7 @@ pub enum MKind {
     L2sq,
     Cos,
     Pearson,
-    Haversine,
+    Haversine, // Haversine, for example, only applies to 2-dimensional latitude/longitude
     Hamming,
     Tanimoto,
     Sorensen,

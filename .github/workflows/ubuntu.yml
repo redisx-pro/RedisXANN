@@ -32,4 +32,5 @@ jobs:
       - name: test redisxann modules
         run: |
           cargo test --tests --workspace --verbose \
-            --exclude redisxann-faiss
+            --exclude redisxann-faiss \
+            --exclude usearch

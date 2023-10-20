@@ -16,6 +16,7 @@
 ## Cases
 1. [**implement cross modal image text retrieval**](https://github.com/weedge/doraemon-nb/blob/main/redisxann_usearch_implement_cross_modal_image_text_retrieval.ipynb)
 2. [**implement approximate query for molecular geometries**](https://github.com/weedge/doraemon-nb/blob/main/redisxann_usearch_implement_approximate_query_for_molecular_geometries.ipynb)
+3. [**implement Geo Spatial Indexing**](https://github.com/weedge/doraemon-nb/blob/main/redisxann_usearch_implement_Geo_Spatial_Indexing.ipynb)
 
 ## Reference
 1. "Efficient and Robust approximate nearest neighbours using Hierarchical Navigable Small World Graphs" (2016,2018) [arxiv](https://arxiv.org/abs/1603.09320)
