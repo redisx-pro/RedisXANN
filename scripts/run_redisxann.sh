@@ -10,7 +10,7 @@ rm -rf redis && git clone https://github.com/redis/redis && \
 curl https://sh.rustup.rs -sSf > rustup.sh
 sh rustup.sh -y
 
-git clone https://github.com/weedge/RedisXANN.git --recursive
+rm -rf RedisXANN && git clone https://github.com/weedge/RedisXANN.git --recursive
 cd RedisXANN && source "$HOME/.cargo/env" && \
   cargo clean && \
   cargo build --lib --manifest-path rust/usearch/Cargo.toml --release \
