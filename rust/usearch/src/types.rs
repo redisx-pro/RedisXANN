@@ -48,7 +48,7 @@ impl From<String> for MKind {
             "l2" => Self::L2sq,
             "cos" => Self::Cos,
             "pearson" => Self::Pearson,
-            "haversine," => Self::Haversine,
+            "haversine" => Self::Haversine,
             "hamming" => Self::Hamming,
             "tanimoto" => Self::Tanimoto,
             "sorensen" => Self::Sorensen,
