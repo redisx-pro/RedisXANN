@@ -13,6 +13,10 @@
     1. if add node name, need save map (node_name<>node_id) kv, use rust hashmap, more memory; 
     2. if just add node id, id from Biz~, KISS. node meta info and node vector store separately.
 
+## Cases
+1. [**implement cross modal image text retrieval**](https://github.com/weedge/doraemon-nb/blob/main/redisxann_usearch_implement_cross_modal_image_text_retrieval.ipynb)
+2. [**implement approximate query for molecular geometries**](https://github.com/weedge/doraemon-nb/blob/main/redisxann_usearch_implement_approximate_query_for_molecular_geometries.ipynb)
+
 ## Reference
 1. "Efficient and Robust approximate nearest neighbours using Hierarchical Navigable Small World Graphs" (2016,2018) [arxiv](https://arxiv.org/abs/1603.09320)
 2. https://www.youtube.com/watch?v=QvKMwLjdK-s
