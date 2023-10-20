@@ -26,3 +26,4 @@
 5. https://github.com/weedge/doraemon-nb/blob/main/faiss_composite_indexes.ipynb
 6. https://github.com/weedge/doraemon-nb/blob/main/faiss_lsh.ipynb
 7. https://weedge.github.io/post/oneday/similarity-search/1.knn-inverted-file-index/
+8. https://github.com/unum-cloud/usearch/blob/main/docs/benchmarks.md

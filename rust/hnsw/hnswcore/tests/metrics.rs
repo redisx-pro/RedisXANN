@@ -1,5 +1,7 @@
 use hnswcore::metrics;
 
+// note: macos rustc version need nightly version 1.70+ for intel __m256 sim
+
 #[test]
 fn diff_is_zero() {
     let v1 = vec![1.0; 512];
