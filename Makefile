@@ -86,11 +86,11 @@ test: cargo_test_workspace
 
 cargo_test_workspace: build
 	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --workspace \
+		--exclude usearch
 		$(CARGO_FLAGS)
 #		--exclude redisxann-hnsw \
 #		--exclude redisxann-usearch \
 #		--exclude redisxann-faiss \
-#		--exclude usearch \
 
 cargo_test: build
 	export LIBRARY_PATH=/usr/local/lib && RUSTFLAGS="-C link-args=-Wl,-rpath,/usr/local/lib" cargo test --tests $(CARGO_FLAGS)
