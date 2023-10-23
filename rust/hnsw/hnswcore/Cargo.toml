@@ -11,3 +11,15 @@ ordered-float = { version = "4.1.0" }
 owning_ref = "0.4.1"
 #num = "0.4.1"
 num-traits = "^0.2"
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "metrics"
+harness = false
+
+[profile.bench]
+opt-level = 3
+debug = true
+strip = false

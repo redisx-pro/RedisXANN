@@ -66,6 +66,9 @@ members = [
     "deps/usearch",
 ]
 
+[workspace.dependencies]
+criterion = { version = "0.5", features = ["async", "async_tokio"] }
+
 [workspace.package]
 edition = "2021"
 publish = ["git"]
