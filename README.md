@@ -13,6 +13,21 @@
     1. if add node name, need save map (node_name<>node_id) kv, use rust hashmap, more memory; 
     2. if just add node id, id from Biz~, KISS. node meta info and node vector store separately.
 
+## CMD
+- create index: `usearch.index.create indexName [algo_param_key algo_param_value]`
+- get index: `usearch.index.get indexName`
+- del index: `usearch.index.del indexName`
+- add node: `usearch.node.add indexName nodeName nodeVector`
+- add vector: `usearch.node.add_id indexName vectorId dataVector`
+- get node: `usearch.node.get indexName nodeName`
+- get vector: `usearch.node.get_id indexName vectorId`
+- del node: `usearch.node.del indexName nodeName`
+- del vector: `usearch.node.del_id indexName vectorId`
+- kann search: `usearch.search.kann indexName topK queryVector [filter_string] [param_key param_value]`
+
+## SDK
+- python: [redisx-py](https://github.com/weedge/redisx-py)
+
 ## Cases
 1. [**implement cross modal image text retrieval**](https://github.com/weedge/doraemon-nb/blob/main/redisxann_usearch_implement_cross_modal_image_text_retrieval.ipynb)
 2. [**implement approximate query for molecular geometries**](https://github.com/weedge/doraemon-nb/blob/main/redisxann_usearch_implement_approximate_query_for_molecular_geometries.ipynb)
