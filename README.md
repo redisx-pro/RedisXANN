@@ -3,15 +3,14 @@
 ## RedisXAnn
 - use rust impl redisxann modules  
 
-## Support ANN algorithm feature
-
-- HNSW
-  * [nmslib](https://github.com/nmslib) - [HNSW](https://github.com/nmslib/hnswlib). rust lib: [hnswlib-rs](https://github.com/jean-pierreBoth/hnswlib-rs) unsupport Dynamic update index; use [**hnswcore**](./rust/hnsw/hnswcore/) lib, index no save/load, so use redis save/load index/node, more usage_memory
-  * [Faiss](https://github.com/facebookresearch/faiss) HNSW with coarse quantization (eg: IndexHNSWFlat), more detail see [faiss wiki](https://github.com/facebookresearch/faiss/wiki).  rust lib: [faiss-rs](https://github.com/Enet4/faiss-rs)
-  * [USearch](https://github.com/unum-cloud/usearch) HNSW (**KISS**); 
-    note: 
-    1. if add node name, need save map (node_name<>node_id) kv, use rust hashmap, more memory; 
-    2. if just add node id, id from Biz~, KISS. node meta info and node vector store separately.
+## Support ANN algorithm feature lib
+* [nmslib](https://github.com/nmslib) - [HNSW](https://github.com/nmslib/hnswlib). rust lib: [hnswlib-rs](https://github.com/jean-pierreBoth/hnswlib-rs) unsupport Dynamic update index; use [**hnswcore**](./rust/hnsw/hnswcore/) lib, index no save/load, so use redis save/load index/node, more usage_memory
+* [Faiss](https://github.com/facebookresearch/faiss) HNSW with coarse quantization (eg: IndexHNSWFlat), more detail see [faiss wiki](https://github.com/facebookresearch/faiss/wiki).  rust lib: [faiss-rs](https://github.com/Enet4/faiss-rs)
+* [USearch](https://github.com/unum-cloud/usearch) HNSW (**KISS**); 
+  note: 
+  1. if add node name, need save map (node_name<>node_id) kv, use rust hashmap, more memory; 
+  2. if just add node id, id from Biz~, KISS. node meta info and node vector store separately.
+* [rapids RAFT/cuvs](https://github.com/rapidsai/cuvs) VS on GPU, bind c/c++/rust ; 
 
 ## CMD
 - create index: `usearch.index.create indexName [algo_param_key algo_param_value]`
@@ -42,3 +41,4 @@
 6. https://github.com/weedge/doraemon-nb/blob/main/faiss_lsh.ipynb
 7. https://weedge.github.io/post/oneday/similarity-search/1.knn-inverted-file-index/
 8. https://github.com/unum-cloud/usearch/blob/main/docs/benchmarks.md
+9. https://rapids.ai/cuvs/
